@@ -1,2 +1,9 @@
-# Project
+# Environment variables
 .env
+
+# Python cache files
+__pycache__
+*.pyc
+
+# Ignore __pycache__ in the recommendations directory
+recommendations/__pycache__/
