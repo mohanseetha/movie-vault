@@ -12,3 +12,4 @@ instance/
 recommendation/__pycache__
 .vercel
 venv
+.env
