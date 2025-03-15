@@ -251,6 +251,9 @@ def get_recommended_movies():
     
     return jsonify({"recommendations": sorted_recommendations}), 200
 
-if __name__ == '__main__':
-    app.run(debug=True, port=8000)
-    
+@app.route('/')
+def home():
+    return jsonify({"message": "Welcome to the Movie Recommendation API!"})
+
+if __name__ == "__main__":
+    app.run(debug=True)
