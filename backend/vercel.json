@@ -3,10 +3,7 @@
   "builds": [
     {
       "src": "app.py",
-      "use": "@vercel/python",
-      "config": {
-        "installCommand": "apt-get update && apt-get install -y gdal-bin python3-gdal && pip3 install -r requirements.txt"
-      }
+      "use": "@vercel/python"
     }
   ],
   "routes": [
