@@ -1,11 +1,11 @@
 Flask
+flask-cors
 pandas
 numpy
 scikit-learn
 joblib
 nltk
 python-dotenv
-flask-cors
 pymongo
 requests
 bcrypt

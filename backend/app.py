@@ -238,17 +238,19 @@ def get_recommended_movies():
     if not user_data or "logged" not in user_data:
         return jsonify({"recommendations": []})
 
-    logged_movies = user_data["logged"]
-    logged_movie_details = fetch_multiple_movie_details(logged_movies)
+    logged_movies = user_data.get("logged", [])
+    if not logged_movies:
+        return jsonify({"recommendations": []})
 
     recommendations = []
-    for movie_data in logged_movie_details:
-        recommended_ids = get_recommendations(movie_data, top_n=5)
-        recommendations.extend(fetch_multiple_movie_details(recommended_ids))
+    for movie_id in logged_movies:
+        movie_details = fetch_movie_details(movie_id)
+        if movie_details:
+            recommended_ids = get_recommendations(movie_details)
+            recommended_movies = fetch_multiple_movie_details(recommended_ids)
+            recommendations.extend(recommended_movies)
 
-    unique_recommendations = {str(rec["id"]): rec for rec in recommendations}.values()
-    sorted_recommendations = sort_recommendations(unique_recommendations)
-    
+    sorted_recommendations = sort_recommendations(recommendations)
     return jsonify({"recommendations": sorted_recommendations}), 200
 
 if __name__ == '__main__':
