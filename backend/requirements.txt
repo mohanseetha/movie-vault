@@ -1,13 +1,7 @@
 Flask
 flask-cors
-pandas
-numpy
-scikit-learn
-joblib
-nltk
 python-dotenv
 pymongo
 requests
 bcrypt
 pyjwt
-gunicorn

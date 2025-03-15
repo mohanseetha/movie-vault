@@ -91,26 +91,32 @@ export const searchMovies = async (query) => {
 };
 
 export const getRecommendations = async (movie) => {
+  const movieId = movie?.id;
+  if (!movieId) return [];
+
   try {
-    const response = await axios.post(
-      `${BASE_URL}/recommendations`,
-      { movie },
-      { headers: { "Content-Type": "application/json" } }
+    const response = await axios.get(
+      `${BASE_URL}/proxy/tmdb/movie/${movieId}/recommendations`,
+      {
+        params: { language: "en-US", page: 1 },
+      }
     );
 
-    const recommendations = Array.isArray(response.data) ? response.data : [];
-    const validRecommendations = recommendations.filter((id) => id);
+    const recommendations = response.data.results || [];
 
     const enrichedRecommendations = await Promise.allSettled(
-      validRecommendations.map((id) =>
-        axios.get(`${BASE_URL}/proxy/tmdb/movie/${id}`, {
+      recommendations.map((rec) =>
+        axios.get(`${BASE_URL}/proxy/tmdb/movie/${rec.id}`, {
           params: { append_to_response: "credits" },
         })
       )
     );
 
-    return enrichedRecommendations
-      .filter((result) => result.status === "fulfilled")
+    const sortedRecommendations = enrichedRecommendations
+      .filter(
+        (result) =>
+          result.status === "fulfilled" && result.value.data.vote_average < 10
+      )
       .map(({ value }) => {
         const data = value.data || {};
         const director =
@@ -125,7 +131,11 @@ export const getRecommendations = async (movie) => {
           director,
           rating: data.vote_average || "N/A",
         };
-      });
+      })
+      .sort((a, b) => b.rating - a.rating)
+      .slice(0, 8);
+
+    return sortedRecommendations;
   } catch (error) {
     console.error("Error fetching recommendations:", error);
     return [];
@@ -228,26 +238,30 @@ export const getRecommendedMovies = async (username) => {
     const response = await axios.post(`${BASE_URL}/recommended-movies`, {
       username,
     });
-
     const recommendations = response.data?.recommendations || [];
+
     if (recommendations.length > 0) {
-      return recommendations.map((rec) => ({
-        id: rec.id,
-        title: rec.title,
-        poster_path: rec.poster,
-        release_date: rec.release_date,
-        director: rec.director || "Unknown",
-        rating: rec.rating,
-      }));
+      const movieDetails = await Promise.all(
+        recommendations.map((rec) =>
+          axios.get(`${BASE_URL}/proxy/tmdb/movie/${rec.id}`).then((res) => ({
+            id: res.data.id,
+            title: res.data.title,
+            poster_path: res.data.poster_path,
+            release_date: res.data.release_date,
+            director:
+              res.data.credits?.crew.find((member) => member.job === "Director")
+                ?.name || "Unknown",
+            rating: res.data.vote_average,
+          }))
+        )
+      );
+      return movieDetails;
     }
 
     const imdbResponse = await axios.get(
       `${BASE_URL}/proxy/tmdb/movie/top_rated`,
       {
-        params: {
-          language: "en-US",
-          page: 1,
-        },
+        params: { language: "en-US", page: 1 },
       }
     );
 

@@ -1,26 +1,34 @@
-from flask import Flask, request, jsonify # type: ignore
-from flask_cors import CORS # type: ignore
-from pymongo import MongoClient # type: ignore
-import bcrypt # type: ignore
-import jwt # type: ignore
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
+import bcrypt
+import jwt
 import datetime
 import os
-from recommendation.model import get_recommendations
-import requests # type: ignore
+
+import requests
 
 app = Flask(__name__)
 CORS(app)
+
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 MONGO_URI = os.getenv("MONGO_URI")
 TMDB_API_KEY = os.getenv("TMDB_API_KEY")
 
-client = MongoClient(MONGO_URI)
+client = MongoClient(MONGO_URI, server_api=ServerApi('1'))
 db = client['movie_db']
 users_collection = db['users']
 
 TMDB_BASE_URL = "https://api.themoviedb.org/3"
-TMDB_API_KEY = os.getenv("TMDB_API_KEY")
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    return response
 
 @app.route('/proxy/tmdb/<path:subpath>', methods=['GET'])
 def proxy_tmdb(subpath):
@@ -41,54 +49,20 @@ def update_user_list(username, list_name, movie_id, action):
         users_collection.update_one({"username": username}, {"$addToSet": {list_name: movie_id}})
     elif action == "remove":
         users_collection.update_one({"username": username}, {"$pull": {list_name: movie_id}})
-
-def fetch_movie_details(movie_id):
-    url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}"
-    try:
-        response = requests.get(url)
-        response.raise_for_status()  
-        movie_data = response.json()
-        return {
-            "id": str(movie_data.get("id")),
-            "title": movie_data.get("title", "Unknown Title"),
-            "rating": movie_data.get("vote_average", 0),
-            "poster": movie_data.get("poster_path"),
-            "overview": movie_data.get("overview", "")
-        }
-    except requests.exceptions.HTTPError as err:
-        print(f"HTTP error for movie ID {movie_id}: {err}")
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching movie details for ID {movie_id}: {e}")
-    return None
-
-def fetch_multiple_movie_details(movie_ids):
-    movies = []
-    for movie_id in movie_ids:
-        movie_data = fetch_movie_details(movie_id)
-        if movie_data:
-            movies.append(movie_data)
-    return movies
-
-def sort_recommendations(recommendations):
-    return sorted(recommendations, key=lambda x: x.get("rating", 0), reverse=True)[:10]
-
-@app.route('/recommendations', methods=['POST'])
-def recommendations():
-    try:
-        data = request.get_json()
-        if not data or 'movie' not in data:
-            return jsonify({"error": "Invalid or missing JSON data"}), 400
         
-        movie = data.get('movie')
-        if not movie or not movie.get('title'):
-            return jsonify({"error": "Missing movie title"}), 400
-
-        recommendations = get_recommendations(movie)
-        return jsonify(recommendations)
-
-    except Exception as e:
-        print(f"Error in /recommendations route: {e}")
-        return jsonify({"error": str(e)}), 500
+def fetch_director(movie_id):
+    response = requests.get(
+        f"{TMDB_BASE_URL}/movie/{movie_id}",
+        params={"api_key": TMDB_API_KEY, "append_to_response": "credits"},
+    )
+    if response.status_code == 200:
+        credits = response.json().get("credits", {})
+        director = next(
+            (member["name"] for member in credits.get("crew", []) if member["job"] == "Director"),
+            "Unknown"
+        )
+        return director
+    return "Unknown"
     
 @app.route('/signup', methods=['POST'])
 def signup():
@@ -233,26 +207,59 @@ def get_recommended_movies():
     if not username:
         return jsonify({"error": "Username is required"}), 400
 
-    user_data = users_collection.find_one({"username": username}, {"logged": 1})
+    user_data = users_collection.find_one(
+        {"username": username},
+        {"logged": 1, "watchlist": 1}
+    )
 
-    if not user_data or "logged" not in user_data:
+    if not user_data:
         return jsonify({"recommendations": []})
 
-    logged_movies = user_data.get("logged", [])
+    logged_movies = set(user_data.get("logged", []))
+    watchlist_movies = set(user_data.get("watchlist", []))
+
     if not logged_movies:
         return jsonify({"recommendations": []})
 
     recommendations = []
-    for movie_id in logged_movies:
-        movie_details = fetch_movie_details(movie_id)
-        if movie_details:
-            recommended_ids = get_recommendations(movie_details)
-            recommended_movies = fetch_multiple_movie_details(recommended_ids)
-            recommendations.extend(recommended_movies)
 
-    sorted_recommendations = sort_recommendations(recommendations)
+    for movie_id in logged_movies:
+        response = requests.get(
+            f"{TMDB_BASE_URL}/movie/{movie_id}/recommendations",
+            params={"api_key": TMDB_API_KEY, "language": "en-US", "page": 1},
+        )
+
+        if response.status_code == 200:
+            recommended_movies = response.json().get("results", [])[:5]
+
+            for movie in recommended_movies:
+                movie_id = movie["id"]
+
+                if (
+                    movie_id not in logged_movies
+                    and movie_id not in watchlist_movies
+                    and movie.get("vote_average", 0) < 10
+                ):
+                    recommendations.append({
+                        "id": movie_id,
+                        "title": movie["title"],
+                        "poster": movie.get("poster_path"),
+                        "release_date": movie.get("release_date", "N/A"),
+                        "director": fetch_director(movie_id),
+                        "rating": movie.get("vote_average", "N/A")
+                    })
+
+    unique_recommendations = {movie['id']: movie for movie in recommendations}.values()
+    sorted_recommendations = sorted(
+        unique_recommendations, key=lambda x: x["rating"], reverse=True
+    )[:15]
+
     return jsonify({"recommendations": sorted_recommendations}), 200
 
+@app.route('/')
+def home():
+    return "Welcome to the Movie Vault API!"
+
 if __name__ == '__main__':
-    app.run(debug=True, port=8000)
+    app.run(debug=True, port=8000, use_reloader=False)
     
