@@ -27,6 +27,7 @@ import {
 } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "@mui/material/styles";
+import Rating from "@mui/material/Rating";
 
 const MovieDetails = () => {
   const { id } = useParams();
@@ -36,6 +37,7 @@ const MovieDetails = () => {
   const [isWatched, setIsWatched] = useState(false);
   const [inWatchlist, setInWatchlist] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [userRating, setUserRating] = useState(0);
   const navigate = useNavigate();
   const theme = useTheme();
 
@@ -289,11 +291,39 @@ const MovieDetails = () => {
                   fontSize: "1rem",
                 }}
               >
-                {movie.rating.toFixed(1) == 0 ? "N/A" : movie.rating.toFixed(1)}
+                {movie.rating.toFixed(1) == 0
+                  ? "N/A"
+                  : (movie.rating / 2).toFixed(1)}
               </Box>
             </Box>
 
             <Typography>Users Rating</Typography>
+            {loggedIn && (
+              <Box
+                sx={{ ml: 4, display: "flex", alignItems: "center", gap: 1 }}
+              >
+                <Typography>
+                  {userRating ? `Your Rating:` : "Rate it!"}
+                </Typography>
+                <Rating
+                  name="user-rating"
+                  precision={0.5}
+                  size="large"
+                  value={userRating}
+                  onChange={(event, newValue) => setUserRating(newValue)}
+                  sx={{
+                    "& .MuiRating-iconFilled": {
+                      color: theme.palette.primary.main,
+                    },
+                    "& .MuiRating-iconHover": {
+                      color: theme.palette.secondary.main,
+                      transform: "scale(1.2)",
+                      transition: "transform 0.2s ease",
+                    },
+                  }}
+                />
+              </Box>
+            )}
           </Box>
         </Box>
       </Box>

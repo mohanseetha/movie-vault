@@ -108,7 +108,7 @@ function MovieCard({ movie, onClick }) {
               color="white"
               sx={{ fontWeight: "bold", fontSize: "0.75rem" }}
             >
-              {movie.rating?.toFixed(1) || "N/A"}
+              {(movie.rating / 2)?.toFixed(1) || "N/A"}
             </Typography>
           </Box>
         </Box>

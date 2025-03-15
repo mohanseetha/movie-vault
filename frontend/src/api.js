@@ -1,17 +1,11 @@
 import axios from "axios";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
-const TMDB_BASE_URL = import.meta.env.VITE_TMDB_BASE_URL;
-const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
 export const fetchMovieDetails = async (id) => {
   const [detailsResponse, creditsResponse] = await Promise.all([
-    axios.get(`${TMDB_BASE_URL}/movie/${id}`, {
-      params: { api_key: TMDB_API_KEY },
-    }),
-    axios.get(`${TMDB_BASE_URL}/movie/${id}/credits`, {
-      params: { api_key: TMDB_API_KEY },
-    }),
+    axios.get(`${BASE_URL}/proxy/tmdb/movie/${id}`),
+    axios.get(`${BASE_URL}/proxy/tmdb/movie/${id}/credits`),
   ]);
 
   const movie = detailsResponse.data;
@@ -49,9 +43,10 @@ export const fetchMovieDetails = async (id) => {
 
 export const searchMovies = async (query) => {
   try {
-    const searchResponse = await axios.get(`${TMDB_BASE_URL}/search/movie`, {
-      params: { api_key: TMDB_API_KEY, query },
-    });
+    const searchResponse = await axios.get(
+      `${BASE_URL}/proxy/tmdb/search/movie`,
+      { params: { query } }
+    );
 
     const results = searchResponse.data.results || [];
 
@@ -59,10 +54,8 @@ export const searchMovies = async (query) => {
       results.map(async (movie) => {
         try {
           const detailsResponse = await axios.get(
-            `${TMDB_BASE_URL}/movie/${movie.id}`,
-            {
-              params: { api_key: TMDB_API_KEY, append_to_response: "credits" },
-            }
+            `${BASE_URL}/proxy/tmdb/movie/${movie.id}`,
+            { params: { append_to_response: "credits" } }
           );
 
           const director =
@@ -106,12 +99,12 @@ export const getRecommendations = async (movie) => {
     );
 
     const recommendations = Array.isArray(response.data) ? response.data : [];
-    const validRecommendations = recommendations.filter((id) => id); // Filter invalid IDs
+    const validRecommendations = recommendations.filter((id) => id);
 
     const enrichedRecommendations = await Promise.allSettled(
       validRecommendations.map((id) =>
-        axios.get(`${TMDB_BASE_URL}/movie/${id}`, {
-          params: { api_key: TMDB_API_KEY, append_to_response: "credits" },
+        axios.get(`${BASE_URL}/proxy/tmdb/movie/${id}`, {
+          params: { append_to_response: "credits" },
         })
       )
     );
@@ -140,18 +133,16 @@ export const getRecommendations = async (movie) => {
 };
 
 export const getTopMoviesWorldwide = async () => {
-  const response = await axios.get(`${TMDB_BASE_URL}/trending/movie/week`, {
-    params: { api_key: TMDB_API_KEY },
-  });
+  const response = await axios.get(
+    `${BASE_URL}/proxy/tmdb/trending/movie/week`
+  );
   return response.data.results.slice(0, 10);
 };
 
 export const getTopMoviesIndia = async () => {
-  const response = await axios.get(`${TMDB_BASE_URL}/discover/movie`, {
+  const response = await axios.get(`${BASE_URL}/proxy/tmdb/discover/movie`, {
     params: {
-      api_key: TMDB_API_KEY,
       region: "IN",
-
       with_origin_country: "IN",
       page: 1,
     },
@@ -250,13 +241,15 @@ export const getRecommendedMovies = async (username) => {
       }));
     }
 
-    const imdbResponse = await axios.get(`${TMDB_BASE_URL}/movie/top_rated`, {
-      params: {
-        api_key: TMDB_API_KEY,
-        language: "en-US",
-        page: 1,
-      },
-    });
+    const imdbResponse = await axios.get(
+      `${BASE_URL}/proxy/tmdb/movie/top_rated`,
+      {
+        params: {
+          language: "en-US",
+          page: 1,
+        },
+      }
+    );
 
     const topRatedMovies = imdbResponse.data.results
       .slice(0, 10)

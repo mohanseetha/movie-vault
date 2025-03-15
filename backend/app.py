@@ -19,6 +19,20 @@ client = MongoClient(MONGO_URI)
 db = client['movie_db']
 users_collection = db['users']
 
+TMDB_BASE_URL = "https://api.themoviedb.org/3"
+TMDB_API_KEY = os.getenv("TMDB_API_KEY")
+
+@app.route('/proxy/tmdb/<path:subpath>', methods=['GET'])
+def proxy_tmdb(subpath):
+    print(f"Incoming request for: {subpath}")
+    url = f"{TMDB_BASE_URL}/{subpath}"
+    params = request.args.to_dict()
+    params['api_key'] = TMDB_API_KEY
+    print(f"URL: {url} | Params: {params}")
+    response = requests.get(url, params=params)
+    print(f"Response status: {response.status_code}")
+    return jsonify(response.json()), response.status_code
+
 def get_user(username):
     return users_collection.find_one({"username": username})
 
