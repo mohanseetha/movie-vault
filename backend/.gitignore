@@ -10,3 +10,4 @@ env/
 *.pkl
 instance/
 recommendation/__pycache__
+.vercel

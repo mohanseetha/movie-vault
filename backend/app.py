@@ -7,8 +7,6 @@ import datetime
 import os
 from recommendation.model import get_recommendations
 import requests # type: ignore
-import asyncio
-import aiohttp # type: ignore
 
 app = Flask(__name__)
 CORS(app)
@@ -44,28 +42,32 @@ def update_user_list(username, list_name, movie_id, action):
     elif action == "remove":
         users_collection.update_one({"username": username}, {"$pull": {list_name: movie_id}})
 
-async def fetch_movie_details(movie_id, session):
+def fetch_movie_details(movie_id):
     url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}"
     try:
-        async with session.get(url) as response:
-            movie_data = await response.json()
-            return {
-                "id": str(movie_data.get("id")),
-                "title": movie_data.get("title", "Unknown Title"),
-                "rating": movie_data.get("vote_average", 0),
-                "poster": movie_data.get("poster_path"),
-                "overview": movie_data.get("overview", "")
-            }
-    except Exception as e:
+        response = requests.get(url)
+        response.raise_for_status()  
+        movie_data = response.json()
+        return {
+            "id": str(movie_data.get("id")),
+            "title": movie_data.get("title", "Unknown Title"),
+            "rating": movie_data.get("vote_average", 0),
+            "poster": movie_data.get("poster_path"),
+            "overview": movie_data.get("overview", "")
+        }
+    except requests.exceptions.HTTPError as err:
+        print(f"HTTP error for movie ID {movie_id}: {err}")
+    except requests.exceptions.RequestException as e:
         print(f"Error fetching movie details for ID {movie_id}: {e}")
-        return None
+    return None
 
-async def fetch_multiple_movie_details(movie_ids):
-    async with aiohttp.ClientSession() as session:
-        tasks = [fetch_movie_details(movie_id, session) for movie_id in movie_ids]
-        results = await asyncio.gather(*tasks)
-        return [movie for movie in results if movie]
-
+def fetch_multiple_movie_details(movie_ids):
+    movies = []
+    for movie_id in movie_ids:
+        movie_data = fetch_movie_details(movie_id)
+        if movie_data:
+            movies.append(movie_data)
+    return movies
 
 def sort_recommendations(recommendations):
     return sorted(recommendations, key=lambda x: x.get("rating", 0), reverse=True)[:10]
@@ -249,9 +251,6 @@ def get_recommended_movies():
     
     return jsonify({"recommendations": sorted_recommendations}), 200
 
-@app.route('/')
-def home():
-    return jsonify({"message": "Welcome to the Movie Recommendation API!"})
-
-if __name__ == "__main__":
-    app.run(debug=True)
+if __name__ == '__main__':
+    app.run(debug=True, port=8000)
+    
