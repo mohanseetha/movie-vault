@@ -1,15 +1,5 @@
+.env
 __pycache__
-*.pyc
-*.pyo
-*.pyd
-venv/
-env/
-*.sqlite3
-*.log
-*.csv
-*.pkl
-instance/
-recommendation/__pycache__
 .vercel
 venv
-.env
+vercel.json
