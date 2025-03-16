@@ -9,6 +9,7 @@ import {
   Grid,
   Card,
   CardMedia,
+  Avatar,
 } from "@mui/material";
 import { getLoggedMovies, getWatchlist, fetchMovieDetails } from "../api";
 import MovieIcon from "@mui/icons-material/Movie";
@@ -119,31 +120,37 @@ const Profile = () => {
         borderRadius: "12px",
         boxShadow: "0 4px 15px rgba(0, 0, 0, 0.2)",
         margin: "auto",
+        maxWidth: { xs: "100%", sm: "90%", md: "80%" },
         mt: 4,
         padding: { xs: 3, sm: 5, md: 6 },
       }}
     >
-      <Box mb={5}>
+      <Box mb={5} sx={{ textAlign: "left" }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+          <Avatar sx={{ bgcolor: "primary.main", color: "white" }}>
+            {user[0].toUpperCase()}
+          </Avatar>
+          <Typography
+            variant="h6"
+            sx={{
+              color: "#333",
+              fontSize: { xs: "1.2rem", sm: "1.4rem" },
+            }}
+          >
+            {"Hello, " +
+              String(user[0]).toUpperCase() +
+              String(user).slice(1) +
+              "!"}
+          </Typography>
+        </Box>
+
         <Typography
           variant="h6"
-          textAlign="center"
-          sx={{
-            color: "#333",
-            fontSize: { xs: "1.5rem", sm: "2rem" },
-          }}
-        >
-          {"Hello, " +
-            String(user[0]).toUpperCase() +
-            String(user).slice(1) +
-            "!"}
-        </Typography>
-        <Typography
-          variant="h6"
-          textAlign="center"
           sx={{
             fontWeight: "bold",
             color: "#333",
-            fontSize: { xs: "1.5rem", sm: "2rem" },
+            fontSize: { xs: "1.1rem", sm: "1.3rem" },
+            mb: 2,
           }}
         >
           Your Movie Journey
@@ -152,38 +159,33 @@ const Profile = () => {
         <Box
           sx={{
             display: "flex",
+            gap: { xs: 2, sm: 4 },
             alignItems: "center",
-            justifyContent: "center",
-            gap: 4,
-            mt: 2,
-            flexDirection: { xs: "column", sm: "row" },
+            flexWrap: "wrap",
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <Box
               sx={{
-                width: 60,
-                height: 60,
+                width: { xs: 40, sm: 50 },
+                height: { xs: 40, sm: 50 },
                 backgroundColor: "primary.light",
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
                 color: "white",
-                fontSize: "2.5rem",
                 borderRadius: "50%",
-                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
+                boxShadow: "0 4px 8px rgba(0, 0, 0, 0.15)",
               }}
             >
-              <MovieIcon fontSize="sm" />
+              <MovieIcon fontSize="medium" />
             </Box>
             <Typography
-              variant="h6"
+              variant="body1"
               sx={{
-                fontWeight: "bold",
-                color: "#333",
-                fontSize: { xs: "1.25rem", sm: "1.5rem" },
-                letterSpacing: "0.5px",
-                textAlign: "center",
+                fontWeight: "500",
+                color: "#555",
+                fontSize: { xs: "1rem", sm: "1.2rem" },
               }}
             >
               {loggedMovies.length} Movies Watched
@@ -193,28 +195,25 @@ const Profile = () => {
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <Box
               sx={{
-                width: 60,
-                height: 60,
+                width: { xs: 40, sm: 50 },
+                height: { xs: 40, sm: 50 },
                 backgroundColor: "secondary.light",
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
                 color: "white",
-                fontSize: "2.5rem",
                 borderRadius: "50%",
-                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
+                boxShadow: "0 4px 8px rgba(0, 0, 0, 0.15)",
               }}
             >
-              <ListAltIcon fontSize="sm" />
+              <ListAltIcon fontSize="medium" />
             </Box>
             <Typography
-              variant="h6"
+              variant="body1"
               sx={{
-                fontWeight: "bold",
-                color: "#333",
-                fontSize: { xs: "1.25rem", sm: "1.5rem" },
-                letterSpacing: "0.5px",
-                textAlign: "center",
+                fontWeight: "500",
+                color: "#555",
+                fontSize: { xs: "1rem", sm: "1.2rem" },
               }}
             >
               {watchlist.length} Movies in Watchlist

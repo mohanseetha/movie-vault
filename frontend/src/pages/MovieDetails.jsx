@@ -8,6 +8,7 @@ import {
   addToWatchlist,
   removeFromWatchlist,
   removeFromLogged,
+  getUserRating,
 } from "../api";
 import {
   Box,
@@ -28,6 +29,8 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "@mui/material/styles";
 import Rating from "@mui/material/Rating";
+import { rateMovie } from "../api";
+import StarIcon from "@mui/icons-material/Star";
 
 const MovieDetails = () => {
   const { id } = useParams();
@@ -54,6 +57,9 @@ const MovieDetails = () => {
 
           const watchlistMovies = await getWatchlist(user);
           setInWatchlist(watchlistMovies.includes(data.id));
+
+          const userRatingData = await getUserRating(user, id);
+          setUserRating(userRatingData);
         }
       } catch (error) {
         console.error("Error fetching movie details:", error);
@@ -66,8 +72,10 @@ const MovieDetails = () => {
   const handleLogMovie = async () => {
     if (user && movie) {
       try {
-        console.log(user);
         if (isWatched) {
+          if (userRating != 0) {
+            setUserRating(0);
+          }
           await removeFromLogged(user, id);
           setIsWatched(false);
         } else {
@@ -91,10 +99,25 @@ const MovieDetails = () => {
           await addToWatchlist(user, id);
           setInWatchlist(true);
           setIsWatched(false);
+          if (userRating != 0) {
+            setUserRating(0);
+          }
         }
       } catch (error) {
         console.error("Error updating watchlist:", error);
       }
+    }
+  };
+
+  const handleRate = async (value) => {
+    try {
+      if (isWatched == false) {
+        handleLogMovie();
+      }
+      await rateMovie(user, id, value);
+      setUserRating(value);
+    } catch {
+      alert("Failed to submit rating");
     }
   };
 
@@ -296,32 +319,34 @@ const MovieDetails = () => {
                   : (movie.rating / 2).toFixed(1)}
               </Box>
             </Box>
-
             <Typography>Users Rating</Typography>
             {loggedIn && (
               <Box
-                sx={{ ml: 4, display: "flex", alignItems: "center", gap: 1 }}
+                sx={{
+                  ml: { xs: 0, sm: 4 },
+                  display: "flex",
+                  flexDirection: { xs: "column", sm: "row" },
+                  alignItems: "center",
+                  gap: 1,
+                  textAlign: { xs: "center", sm: "left" },
+                }}
               >
-                <Typography>
-                  {userRating ? `Your Rating:` : "Rate it!"}
-                </Typography>
-                <Rating
-                  name="user-rating"
-                  precision={0.5}
-                  size="large"
-                  value={userRating}
-                  onChange={(event, newValue) => setUserRating(newValue)}
-                  sx={{
-                    "& .MuiRating-iconFilled": {
-                      color: theme.palette.primary.main,
-                    },
-                    "& .MuiRating-iconHover": {
-                      color: theme.palette.secondary.main,
-                      transform: "scale(1.2)",
-                      transition: "transform 0.2s ease",
-                    },
-                  }}
-                />
+                {userRating !== 0 && <Typography>Your Rating:</Typography>}
+                <Tooltip title="Rate this movie">
+                  <Rating
+                    name="movie-rating"
+                    value={userRating}
+                    onChange={(event, newValue) => handleRate(newValue)}
+                    precision={0.5}
+                    icon={<StarIcon fontSize="large" />}
+                    emptyIcon={<StarIcon fontSize="large" color="disabled" />}
+                    sx={{
+                      "& .MuiSvgIcon-root": {
+                        fontSize: { xs: "1.8rem", sm: "2.4rem" },
+                      },
+                    }}
+                  />
+                </Tooltip>
               </Box>
             )}
           </Box>

@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { getLoggedMovies, fetchMovieDetails } from "../api";
 import {
@@ -10,12 +10,12 @@ import {
   Card,
   CardMedia,
 } from "@mui/material";
-import MovieIcon from "@mui/icons-material/Movie";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useNavigate, Navigate } from "react-router-dom";
 
-const WatchedMovies = () => {
+const MoviesWatched = () => {
   const { loggedIn, user, loading } = useContext(AuthContext);
-  const [loggedMovies, setLoggedMovies] = useState([]);
+  const [moviesWatched, setMoviesWatched] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
@@ -37,9 +37,9 @@ const WatchedMovies = () => {
       if (!user) return;
 
       try {
-        const loggedMovieIds = await getLoggedMovies(user);
-        const loggedMoviesData = await fetchMoviesByIds(loggedMovieIds);
-        setLoggedMovies(loggedMoviesData.reverse());
+        const movieIds = await getLoggedMovies(user);
+        const moviesData = await fetchMoviesByIds(movieIds);
+        setMoviesWatched(moviesData.reverse());
       } catch (err) {
         console.error("Error loading movies:", err);
         setError("Failed to load movies. Please try again later.");
@@ -108,6 +108,7 @@ const WatchedMovies = () => {
         borderRadius: "12px",
         boxShadow: "0 4px 15px rgba(0, 0, 0, 0.2)",
         margin: "auto",
+        maxWidth: { xs: "100%", sm: "90%", md: "80%" },
         mt: 4,
         padding: { xs: 3, sm: 5, md: 6 },
       }}
@@ -117,57 +118,52 @@ const WatchedMovies = () => {
         sx={{
           fontWeight: "bold",
           color: "#333",
-          fontSize: { xs: "1.5rem", sm: "2rem" },
-          textAlign: "center",
+          fontSize: { xs: "1.5rem", sm: "2rem", md: "2rem" },
+          textAlign: { xs: "center", sm: "left", md: "left" },
+          mb: 3,
         }}
       >
-        Movies Watched by You
+        Your Watched Movies
       </Typography>
 
       <Box
         sx={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          gap: 4,
-          mt: 2,
-          flexDirection: { xs: "column", sm: "row" },
+          gap: 2,
+          mb: 3,
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Box
-            sx={{
-              width: 60,
-              height: 60,
-              backgroundColor: "secondary.light",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              color: "white",
-              fontSize: "2.5rem",
-              borderRadius: "50%",
-              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
-            }}
-          >
-            <MovieIcon fontSize="sm" />
-          </Box>
-          <Typography
-            variant="h6"
-            sx={{
-              fontWeight: "bold",
-              color: "#333",
-              fontSize: { xs: "1.25rem", sm: "1.5rem" },
-              letterSpacing: "0.5px",
-              textAlign: "center",
-            }}
-          >
-            {loggedMovies.length} Movies Watched
-          </Typography>
+        <Box
+          sx={{
+            width: 50,
+            height: 50,
+            backgroundColor: "primary.light",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            color: "white",
+            borderRadius: "50%",
+            boxShadow: "0 4px 10px rgba(0, 0, 0, 0.15)",
+          }}
+        >
+          <VisibilityIcon />
         </Box>
+        <Typography
+          variant="h6"
+          sx={{
+            fontWeight: "500",
+            color: "#555",
+            fontSize: { xs: "1.2rem", sm: "1.4rem", md: "1.4rem" },
+            textAlign: { xs: "center", sm: "center", md: "left" },
+          }}
+        >
+          {moviesWatched.length} Movies Watched
+        </Typography>
       </Box>
 
-      <Grid container spacing={3} mt={2}>
-        {loggedMovies.map((movie) => (
+      <Grid container spacing={3} mt={1}>
+        {moviesWatched.map((movie) => (
           <Grid item xs={6} sm={4} md={3} key={movie.id}>
             <Card
               sx={{
@@ -195,13 +191,13 @@ const WatchedMovies = () => {
         ))}
       </Grid>
 
-      {loggedMovies.length === 0 && (
+      {moviesWatched.length === 0 && (
         <Typography sx={{ color: "#666", textAlign: "center", mt: 4 }}>
-          You haven't watched any movies yet.
+          No movies watched yet.
         </Typography>
       )}
     </Box>
   );
 };
 
-export default WatchedMovies;
+export default MoviesWatched;

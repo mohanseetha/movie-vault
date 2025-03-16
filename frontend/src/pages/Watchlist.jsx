@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { getWatchlist, fetchMovieDetails } from "../api";
 import {
@@ -108,6 +108,7 @@ const Watchlist = () => {
         borderRadius: "12px",
         boxShadow: "0 4px 15px rgba(0, 0, 0, 0.2)",
         margin: "auto",
+        maxWidth: { xs: "100%", sm: "90%", md: "80%" },
         mt: 4,
         padding: { xs: 3, sm: 5, md: 6 },
       }}
@@ -117,8 +118,9 @@ const Watchlist = () => {
         sx={{
           fontWeight: "bold",
           color: "#333",
-          fontSize: { xs: "1.5rem", sm: "2rem" },
-          textAlign: "center",
+          fontSize: { xs: "1.5rem", sm: "2rem", md: "2rem" },
+          textAlign: { xs: "center", sm: "left", md: "left" },
+          mb: 3,
         }}
       >
         Your Watchlist
@@ -128,45 +130,39 @@ const Watchlist = () => {
         sx={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          gap: 4,
-          mt: 2,
-          flexDirection: { xs: "column", sm: "row" },
+          gap: 2,
+          mb: 3,
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Box
-            sx={{
-              width: 50,
-              height: 50,
-              backgroundColor: "secondary.light",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              color: "white",
-              fontSize: "2rem",
-              borderRadius: "50%",
-              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
-            }}
-          >
-            <ListAltIcon fontSize="sm" />
-          </Box>
-          <Typography
-            variant="h6"
-            sx={{
-              fontWeight: "bold",
-              color: "#333",
-              fontSize: { xs: "1.25rem", sm: "1.5rem" },
-              letterSpacing: "0.5px",
-              textAlign: "center",
-            }}
-          >
-            {watchlist.length} Movies in Watchlist
-          </Typography>
+        <Box
+          sx={{
+            width: 50,
+            height: 50,
+            backgroundColor: "primary.light",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            color: "white",
+            borderRadius: "50%",
+            boxShadow: "0 4px 10px rgba(0, 0, 0, 0.15)",
+          }}
+        >
+          <ListAltIcon />
         </Box>
+        <Typography
+          variant="h6"
+          sx={{
+            fontWeight: "500",
+            color: "#555",
+            fontSize: { xs: "1.2rem", sm: "1.4rem", md: "1.4rem" },
+            textAlign: { xs: "center", sm: "center", md: "left" },
+          }}
+        >
+          {watchlist.length} Movies in Watchlist
+        </Typography>
       </Box>
 
-      <Grid container spacing={3} mt={2}>
+      <Grid container spacing={3} mt={1}>
         {watchlist.map((movie) => (
           <Grid item xs={6} sm={4} md={3} key={movie.id}>
             <Card

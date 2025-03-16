@@ -6,8 +6,9 @@ import bcrypt
 import jwt
 import datetime
 import os
-
 import requests
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
@@ -20,13 +21,14 @@ TMDB_API_KEY = os.getenv("TMDB_API_KEY")
 client = MongoClient(MONGO_URI, server_api=ServerApi('1'))
 db = client['movie_db']
 users_collection = db['users']
+ratings_collection = db['ratings']
 
 TMDB_BASE_URL = "https://api.themoviedb.org/3"
 
 @app.after_request
 def add_cors_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     return response
 
@@ -223,38 +225,124 @@ def get_recommended_movies():
 
     recommendations = []
 
-    for movie_id in logged_movies:
+    for logged_movie_id in logged_movies:
         response = requests.get(
-            f"{TMDB_BASE_URL}/movie/{movie_id}/recommendations",
+            f"{TMDB_BASE_URL}/movie/{logged_movie_id}/recommendations",
             params={"api_key": TMDB_API_KEY, "language": "en-US", "page": 1},
         )
 
         if response.status_code == 200:
-            recommended_movies = response.json().get("results", [])[:5]
+            recommended_movies = response.json().get("results", [])
 
-            for movie in recommended_movies:
-                movie_id = movie["id"]
+            for recommended_movie in recommended_movies:
+                rec_movie_id = recommended_movie["id"]
 
                 if (
-                    movie_id not in logged_movies
-                    and movie_id not in watchlist_movies
-                    and movie.get("vote_average", 0) < 10
+                    rec_movie_id not in logged_movies
+                    and rec_movie_id not in watchlist_movies
+                    and not recommended_movie.get("adult", False)
                 ):
-                    recommendations.append({
-                        "id": movie_id,
-                        "title": movie["title"],
-                        "poster": movie.get("poster_path"),
-                        "release_date": movie.get("release_date", "N/A"),
-                        "director": fetch_director(movie_id),
-                        "rating": movie.get("vote_average", "N/A")
-                    })
+                    movie_details = requests.get(
+                        f"{TMDB_BASE_URL}/movie/{rec_movie_id}",
+                        params={"api_key": TMDB_API_KEY, "append_to_response": "credits"}
+                    )
+
+                    if movie_details.status_code == 200:
+                        movie_data = movie_details.json()
+
+                        if movie_data.get("runtime", 0) >= 70:
+                            director = next(
+                                (crew["name"] for crew in movie_data.get("credits", {}).get("crew", [])
+                                 if crew.get("job") == "Director"),
+                                "Unknown"
+                            )
+
+                            input_genres = {genre["id"] for genre in movie_data.get("genres", [])}
+                            input_country = (
+                                                movie_data.get("production_countries", [{}])[0].get("iso_3166_1")
+                                                if movie_data.get("production_countries") 
+                                                else None
+                                            )
+
+                            input_language = movie_data.get("original_language")
+
+                            score = (
+                                2 if input_genres & {genre["id"] for genre in recommended_movie.get("genres", [])} else 0
+                            ) + (
+                                1 if input_country == recommended_movie.get("production_countries", [{}])[0].get("iso_3166_1") else 0
+                            ) + (
+                                1 if input_language == recommended_movie.get("original_language") else 0
+                            )
+
+                            if score > 0:
+                                recommendations.append({
+                                    "id": rec_movie_id,
+                                    "title": movie_data.get("title", "Untitled"),
+                                    "poster": movie_data.get("poster_path"),
+                                    "release_date": movie_data.get("release_date", "N/A"),
+                                    "director": director,
+                                    "rating": movie_data.get("vote_average", "N/A")
+                                })
 
     unique_recommendations = {movie['id']: movie for movie in recommendations}.values()
-    sorted_recommendations = sorted(
-        unique_recommendations, key=lambda x: x["rating"], reverse=True
-    )[:15]
+    final_recommendations = list(unique_recommendations)[:15]
 
-    return jsonify({"recommendations": sorted_recommendations}), 200
+    return jsonify({"recommendations": final_recommendations}), 200
+
+@app.route('/rate_movie', methods=['POST'])
+def rate_movie():
+    data = request.json
+    username = data.get('username')
+    movie_id = data.get('movie_id')
+    rating = data.get('rating')
+    review = data.get('review', '')
+
+    if not username or not movie_id or not rating:
+        return jsonify({"error": "Missing required fields"}), 400
+
+    ratings_collection.update_one(
+        {"username": username, "movie_id": movie_id},
+        {"$set": {"rating": rating, "review": review}},
+        upsert=True
+    )
+
+    return jsonify({"message": "Rating submitted successfully"})
+
+@app.route('/get_user_rating', methods=['POST'])
+def get_user_rating():
+    try:
+        data = request.json
+        username = data.get('username')
+        movie_id = data.get('movie_id')
+
+        if not username or not movie_id:
+            return jsonify({"error": "Invalid data"}), 400
+
+        user_rating = ratings_collection.find_one({"username": username, "movie_id": movie_id})
+        return jsonify({"rating": user_rating['rating'] if user_rating else 0})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/delete_rating', methods=['POST'])
+def delete_rating():
+    try:
+        data = request.json
+        username = data.get('username')
+        movie_id = data.get('movie_id')
+
+        if not username or not movie_id:
+            return jsonify({"error": "Invalid data"}), 400
+
+        result = ratings_collection.delete_one({"username": username, "movie_id": movie_id})
+
+        if result.deleted_count == 0:
+            return jsonify({"error": "Rating not found"}), 404
+
+        return jsonify({"message": "Rating deleted successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/')
 def home():

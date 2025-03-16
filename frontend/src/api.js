@@ -112,16 +112,32 @@ export const getRecommendations = async (movie) => {
       )
     );
 
-    const sortedRecommendations = enrichedRecommendations
+    const inputGenres = movie?.genres?.map((genre) => genre.id) || [];
+    const inputCountry = movie?.production_countries?.[0]?.iso_3166_1;
+    const inputLanguage = movie?.original_language;
+
+    const filteredRecommendations = enrichedRecommendations
       .filter(
         (result) =>
-          result.status === "fulfilled" && result.value.data.vote_average < 10
+          result.status === "fulfilled" &&
+          !result.value.data.adult &&
+          result.value.data.runtime >= 70
       )
       .map(({ value }) => {
         const data = value.data || {};
         const director =
           data.credits?.crew.find((member) => member.job === "Director")
             ?.name || "Unknown";
+
+        const hasMatchingGenre = data.genres?.some((genre) =>
+          inputGenres.includes(genre.id)
+        );
+
+        const hasMatchingCountry = data.production_countries?.some(
+          (country) => country.iso_3166_1 === inputCountry
+        );
+
+        const hasMatchingLanguage = data.original_language === inputLanguage;
 
         return {
           id: data.id,
@@ -130,12 +146,16 @@ export const getRecommendations = async (movie) => {
           release_date: data.release_date || "N/A",
           director,
           rating: data.vote_average || "N/A",
+          score:
+            (hasMatchingGenre ? 2 : 0) +
+            (hasMatchingCountry ? 1 : 0) +
+            (hasMatchingLanguage ? 1 : 0),
         };
       })
-      .sort((a, b) => b.rating - a.rating)
+      .filter((movie) => movie.score > 0)
       .slice(0, 8);
 
-    return sortedRecommendations;
+    return filteredRecommendations;
   } catch (error) {
     console.error("Error fetching recommendations:", error);
     return [];
@@ -174,6 +194,10 @@ export const logMovie = async (username, movieId) => {
 
 export const addToWatchlist = async (username, movieId) => {
   try {
+    const rating = await getUserRating(username, movieId);
+    if (rating) {
+      await deleteRating(username, movieId);
+    }
     await axios.post(`${BASE_URL}/add_to_watchlist`, {
       username,
       movie_id: movieId,
@@ -223,6 +247,10 @@ export const removeFromWatchlist = async (username, movieId) => {
 
 export const removeFromLogged = async (username, movieId) => {
   try {
+    const rating = await getUserRating(username, movieId);
+    if (rating) {
+      await deleteRating(username, movieId);
+    }
     const response = await axios.put(
       `${BASE_URL}/remove_from_logged?username=${username}&movie_id=${movieId}`
     );
@@ -298,5 +326,46 @@ export const loginUser = async (user, password) => {
     return response.data;
   } catch (error) {
     throw error.response?.data?.error || "Login failed. Please try again.";
+  }
+};
+
+export const rateMovie = async (username, movieId, rating, review = "") => {
+  try {
+    const response = await axios.post(`${BASE_URL}/rate_movie`, {
+      username,
+      movie_id: movieId,
+      rating,
+      review,
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error rating movie:", error);
+    throw error;
+  }
+};
+
+export const getUserRating = async (username, movieId) => {
+  try {
+    const response = await axios.post(`${BASE_URL}/get_user_rating`, {
+      username,
+      movie_id: movieId,
+    });
+    return response.data.rating;
+  } catch (error) {
+    console.error("Error fetching user rating:", error);
+    return 0;
+  }
+};
+
+export const deleteRating = async (username, movieId) => {
+  try {
+    const response = await axios.post(`${BASE_URL}/delete_rating`, {
+      username,
+      movie_id: movieId,
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting rating:", error);
+    throw error;
   }
 };
