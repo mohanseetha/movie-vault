@@ -9,6 +9,12 @@ import {
   removeFromWatchlist,
   removeFromLogged,
   getUserRating,
+  addReview,
+  getReviews,
+  getUserReview,
+  rateMovie,
+  deleteReview,
+  editReview,
 } from "../api";
 import {
   Box,
@@ -19,6 +25,9 @@ import {
   Chip,
   Tooltip,
   IconButton,
+  Avatar,
+  TextField,
+  Rating,
 } from "@mui/material";
 import {
   Visibility,
@@ -28,9 +37,14 @@ import {
 } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "@mui/material/styles";
-import Rating from "@mui/material/Rating";
-import { rateMovie } from "../api";
-import StarIcon from "@mui/icons-material/Star";
+import {
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Send as SendIcon,
+  Star as StarIcon,
+  Check as CheckIcon,
+  Close as CloseIcon,
+} from "@mui/icons-material";
 
 const MovieDetails = () => {
   const { id } = useParams();
@@ -41,8 +55,15 @@ const MovieDetails = () => {
   const [inWatchlist, setInWatchlist] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userRating, setUserRating] = useState(0);
+  const [review, setReview] = useState("");
+  const [userReview, setUserReview] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [editing, setEditing] = useState(false);
+  const [editedReview, setEditedReview] = useState("");
   const navigate = useNavigate();
   const theme = useTheme();
+  const capitalize = (str) =>
+    str ? str.charAt(0).toUpperCase() + str.slice(1) : "";
 
   useEffect(() => {
     const fetchData = async () => {
@@ -50,7 +71,8 @@ const MovieDetails = () => {
         const data = await fetchMovieDetails(id);
         setMovie(data);
         setLoading(false);
-
+        const fetchedReviews = await getReviews(id);
+        setReviews(fetchedReviews);
         if (data && loggedIn) {
           const loggedMovies = await getLoggedMovies(user);
           setIsWatched(loggedMovies.includes(data.id));
@@ -60,6 +82,9 @@ const MovieDetails = () => {
 
           const userRatingData = await getUserRating(user, id);
           setUserRating(userRatingData);
+
+          const userReviewData = await getUserReview(user, id);
+          setUserReview(userReviewData);
         }
       } catch (error) {
         console.error("Error fetching movie details:", error);
@@ -114,10 +139,49 @@ const MovieDetails = () => {
       if (isWatched == false) {
         handleLogMovie();
       }
-      await rateMovie(user, id, value);
+      await rateMovie(user, id, value, userReview);
       setUserRating(value);
     } catch {
       alert("Failed to submit rating");
+    }
+  };
+
+  const handleAddReview = async () => {
+    try {
+      await addReview(id, user, userRating, review);
+      if (!isWatched) {
+        handleLogMovie();
+      }
+      const updatedReviews = await getReviews(id);
+      setReviews(updatedReviews);
+      setUserReview(review);
+    } catch (e) {
+      console.error("Failed to submit review", e);
+    }
+  };
+
+  const handleDeleteReview = async () => {
+    try {
+      await deleteReview(id, user);
+      setUserReview("");
+      setReviews(reviews.filter((review) => review.username !== user));
+    } catch (error) {
+      console.error("Failed to delete review:", error);
+    }
+  };
+
+  const handleEditReview = async () => {
+    try {
+      await editReview(user, id, editedReview);
+      setUserReview(editedReview);
+      setReviews(
+        reviews.filter(
+          (review) => review.username !== user && review.review !== userReview
+        )
+      );
+      setEditing(false);
+    } catch (error) {
+      console.error("Failed to edit review:", error);
     }
   };
 
@@ -396,6 +460,203 @@ const MovieDetails = () => {
             Show Recommendations
           </Button>
         </Box>
+      </Box>
+      {loggedIn && !userReview && (
+        <Box sx={{ p: 3 }}>
+          <Typography variant="h6" sx={{ mb: 1 }}>
+            Write Your Review
+          </Typography>
+          <Box
+            sx={{
+              position: "relative",
+              width: "100%",
+            }}
+          >
+            <TextField
+              multiline
+              minRows={4}
+              maxRows={6}
+              placeholder="Share your thoughts..."
+              value={review}
+              onChange={(e) => setReview(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleAddReview();
+                }
+              }}
+              fullWidth
+              variant="outlined"
+              InputProps={{
+                sx: {
+                  borderRadius: "12px",
+                  backgroundColor: "#f5f5f5",
+                  "& .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#ccc",
+                  },
+                },
+              }}
+            />
+            <IconButton
+              onClick={handleAddReview}
+              sx={{
+                position: "absolute",
+                right: "10px",
+                bottom: "10px",
+                backgroundColor: "teal",
+                color: "white",
+                borderRadius: "50%",
+                "&:hover": {
+                  backgroundColor: "darkslategray",
+                },
+              }}
+            >
+              <SendIcon />
+            </IconButton>
+          </Box>
+        </Box>
+      )}
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Reviews
+        </Typography>
+
+        {loggedIn && userReview && (
+          <Box
+            sx={{
+              mb: 2,
+              p: 2,
+              backgroundColor: "#e0f2f1",
+              borderRadius: 2,
+              boxShadow: 1,
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+              <Avatar
+                sx={{
+                  alignSelf: "center",
+                  bgcolor: theme.palette.primary.main,
+                }}
+              >
+                {capitalize(user[0])}
+              </Avatar>
+              <Box ml={1}>
+                <Typography variant="subtitle1" fontWeight="bold">
+                  {capitalize(user)}
+                </Typography>
+                <Rating value={userRating || 0} readOnly />
+              </Box>
+              <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
+                <IconButton
+                  onClick={() => setEditing(true)}
+                  sx={{ color: "teal" }}
+                >
+                  <EditIcon />
+                </IconButton>
+                <IconButton onClick={handleDeleteReview} sx={{ color: "red" }}>
+                  <DeleteIcon />
+                </IconButton>
+              </Box>
+            </Box>
+
+            {editing ? (
+              <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
+                <TextField
+                  multiline
+                  minRows={2}
+                  maxRows={4}
+                  value={editedReview}
+                  onChange={(e) => setEditedReview(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleEditReview();
+                    }
+                  }}
+                  fullWidth
+                  variant="outlined"
+                  InputProps={{
+                    sx: {
+                      borderRadius: "12px",
+                      backgroundColor: "#f5f5f5",
+                    },
+                  }}
+                />
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  <IconButton
+                    onClick={handleEditReview}
+                    sx={{
+                      color: "teal",
+                      backgroundColor: "#d9f0f0",
+                      borderRadius: "50%",
+                      p: 0.5,
+                      "&:hover": { backgroundColor: "teal", color: "white" },
+                    }}
+                  >
+                    <CheckIcon />
+                  </IconButton>
+                  <IconButton
+                    onClick={() => setEditing(false)}
+                    sx={{
+                      color: "gray",
+                      backgroundColor: "#f1f1f1",
+                      borderRadius: "50%",
+                      p: 0.5,
+                      "&:hover": { backgroundColor: "#ddd" },
+                    }}
+                  >
+                    <CloseIcon />
+                  </IconButton>
+                </Box>
+              </Box>
+            ) : (
+              <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                {userReview}
+              </Typography>
+            )}
+          </Box>
+        )}
+
+        {reviews.length > 0 ? (
+          reviews
+            .filter((review) => review.username && review.review !== userReview)
+            .map((review, index) => (
+              <Box
+                key={index}
+                sx={{
+                  p: 2,
+                  backgroundColor: "#e0f2f1",
+                  borderRadius: 2,
+                  boxShadow: 1,
+                  mb: 1,
+                }}
+              >
+                <Box
+                  sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}
+                >
+                  <Avatar
+                    sx={{
+                      alignSelf: "center",
+                      bgcolor: theme.palette.primary.main,
+                    }}
+                  >
+                    {capitalize(review?.username?.[0]) || "U"}
+                  </Avatar>
+                  <Box ml={1}>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      {capitalize(review?.username)}
+                    </Typography>
+                    <Rating value={review?.rating || 0} readOnly />
+                  </Box>
+                </Box>
+                <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                  {review?.review}
+                </Typography>
+              </Box>
+            ))
+        ) : (
+          <Typography>No reviews available.</Typography>
+        )}
       </Box>
     </Box>
   );

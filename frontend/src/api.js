@@ -369,3 +369,78 @@ export const deleteRating = async (username, movieId) => {
     throw error;
   }
 };
+
+export const addReview = async (movieId, username, rating, review) => {
+  try {
+    const response = await axios.post(`${BASE_URL}/add_review`, {
+      username,
+      movie_id: movieId,
+      rating,
+      review,
+    });
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Error adding review:",
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
+
+export const deleteReview = async (movieId, username) => {
+  try {
+    const response = await axios.delete(`${BASE_URL}/delete_review`, {
+      data: {
+        movie_id: movieId,
+        username: username,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Error deleting review:",
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
+
+export const getReviews = async (movieId) => {
+  try {
+    const response = await axios.get(`${BASE_URL}/get_reviews/${movieId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching reviews:", error);
+    return [];
+  }
+};
+
+export const getUserReview = async (username, movieId) => {
+  try {
+    const response = await axios.get(
+      `${BASE_URL}/get_review?username=${username}&movie_id=${movieId}`
+    );
+    return response.data.review;
+  } catch (error) {
+    console.error("Error fetching user review:", error);
+    return false;
+  }
+};
+
+export const editReview = async (username, movieId, newReview) => {
+  try {
+    const response = await axios.put(`${BASE_URL}/edit-review`, {
+      username,
+      movie_id: movieId,
+      review: newReview,
+    });
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Error editing review:",
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};

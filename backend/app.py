@@ -343,6 +343,87 @@ def delete_rating():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+@app.route('/add_review', methods=['POST'])
+def add_review():
+    data = request.json
+    username = data.get("username")
+    movie_id = data.get("movie_id")
+    rating = data.get("rating")
+    review = data.get("review")
+
+    if not movie_id or not username or not review:
+        return jsonify({"error": "Missing required fields"}), 400
+
+    review_data = {
+        "username": username,
+        "movie_id": movie_id,
+        "rating": rating,
+        "review": review
+    }
+
+    ratings_collection.update_one(
+        {"username": username, "movie_id": movie_id},
+        {"$set": review_data},
+        upsert=True
+    )
+    return jsonify({"message": "Review added successfully"}), 201
+
+@app.route('/delete_review', methods=['DELETE'])
+def delete_review():
+    data = request.json
+    username = data.get("username")
+    movie_id = data.get("movie_id")
+
+    if not movie_id or not username:
+        return jsonify({"error": "Missing required fields"}), 400
+
+    ratings_collection.update_one(
+        {"movie_id": movie_id, "username": username}, 
+        {"$set": {"review": ""}}
+    )
+
+    return jsonify({"message": "Review deleted successfully"}), 200
+
+@app.route('/get_reviews/<movie_id>', methods=['GET'])
+def get_reviews(movie_id):
+    reviews = list(ratings_collection.find({"movie_id": movie_id}, {"_id": 0}))
+    print(reviews)
+    return jsonify(reviews), 200
+
+@app.route('/get_review', methods=['GET'])
+def get_review_by_user():
+    username = request.args.get("username")
+    movie_id = request.args.get("movie_id")
+
+    if not username or not movie_id:
+        return jsonify({"error": "Username and Movie ID are required"}), 400
+
+    review = ratings_collection.find_one({"username": username, "movie_id": movie_id})
+
+    if review:
+        print(review)
+        print(review.get("review"))
+        return jsonify({"review": review.get("review")})
+    else:
+        return jsonify({"review": None})
+    
+@app.route('/edit-review', methods=['PUT'])
+def edit_review():
+    data = request.get_json()
+    username = data.get("username")
+    movie_id = data.get("movie_id")
+    new_review = data.get("review")
+
+    if not movie_id or not username or not new_review:
+        return jsonify({"error": "Invalid data"}), 400
+
+    ratings_collection.update_one(
+        {"username": username, "movie_id": movie_id},
+        {"$set": {"review": new_review}}
+    )
+    
+    return jsonify({"message": "Review updated successfully"}), 200
 
 @app.route('/')
 def home():
