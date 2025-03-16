@@ -4,8 +4,12 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/app.py",
-      "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
-    }
+      "dest": "/app.py"
+    },
+    { "src": "/add_review", "dest": "/app.py" },
+    { "src": "/delete_review", "dest": "/app.py" },
+    { "src": "/get_reviews/(.*)", "dest": "/app.py" },
+    { "src": "/get_review", "dest": "/app.py" },
+    { "src": "/edit-review", "dest": "/app.py" }
   ]
 }
