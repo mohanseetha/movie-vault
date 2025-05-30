@@ -11,15 +11,11 @@ Movie Vault is a movie database web application where users can log their watche
 * User authentication and account management
 * Responsive user interface
 
----
-
 ## Tech Stack
 
 * **Frontend:** React
 * **Backend:** Flask
 * **Database:** MongoDB
-
----
 
 ## Getting Started
 
@@ -68,8 +64,6 @@ Movie Vault is a movie database web application where users can log their watche
 1.  Open your browser and go to `http://localhost:5173`
 2.  Sign up or log in to your account
 3.  Start adding movies, building your watchlist, and exploring recommendations
-
----
 
 ## Contributing
 
