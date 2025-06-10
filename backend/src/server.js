@@ -4,12 +4,10 @@ import connectDB from "./config/db.js";
 
 dotenv.config();
 
-let isConnected = false;
+const PORT = process.env.PORT || 8001;
 
-export default async function handler(req, res) {
-  if (!isConnected) {
-    await connectDB();
-    isConnected = true;
-  }
-  app(req, res);
-}
+connectDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+});
