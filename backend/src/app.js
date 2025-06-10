@@ -8,9 +8,20 @@ import ratingRoutes from "./routes/ratings.routes.js";
 
 dotenv.config();
 
+const allowedOrigins = [
+  "https://movie-vault-two.vercel.app",
+  "http://localhost:5173",
+];
+
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
