@@ -1,665 +1,546 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import {
   fetchMovieDetails,
+  getMovieRecommendations,
   getLoggedMovies,
   getWatchlist,
-  logMovie,
   addToWatchlist,
   removeFromWatchlist,
-  removeFromLogged,
-  getUserRating,
-  addReview,
-  getReviews,
-  getUserReview,
-  rateMovie,
-  deleteReview,
-  editReview,
-} from "../api";
-import {
-  Box,
-  Typography,
-  Button,
-  CircularProgress,
-  Divider,
-  Chip,
-  Tooltip,
-  IconButton,
-  Avatar,
-  TextField,
-  Rating,
-} from "@mui/material";
-import {
-  Visibility,
-  VisibilityOff,
-  Bookmark,
-  BookmarkBorder,
-} from "@mui/icons-material";
+  getRatings,
+} from "../utils/api";
 import { useAuth } from "../context/AuthContext";
-import { useTheme } from "@mui/material/styles";
 import {
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Send as SendIcon,
-  Star as StarIcon,
-  Check as CheckIcon,
-  Close as CloseIcon,
-} from "@mui/icons-material";
+  Star,
+  Calendar,
+  Clock,
+  Users,
+  Play,
+  Heart,
+  Share2,
+  Check,
+  Edit3,
+  MessageSquare,
+  LogIn,
+  LogOut,
+} from "lucide-react";
+import MovieCarousel from "../components/MovieCarousel";
+import StarRating from "../components/StarRating";
+import InteractiveStarRating from "../components/InteractiveStarRating";
+import ActionButton from "../components/ActionButton";
+import MetricBadge from "../components/MetricBadge";
+import ReviewCard from "../components/ReviewCard";
+import LogMovieModal from "../components/LogMovieModal";
 
-const MovieDetails = () => {
+function Section({ children, className = "" }) {
+  return (
+    <section className={`relative z-30 bg-background py-16 ${className}`}>
+      <div className="max-w-7xl mx-auto px-4 md:px-8">{children}</div>
+    </section>
+  );
+}
+
+function SectionHeading({ icon: Icon, children, count }) {
+  return (
+    <div className="mb-8">
+      <h2 className="text-3xl font-bold text-text-main mb-2 flex items-center gap-3">
+        {Icon && <Icon className="text-accent" size={32} />}
+        {children}
+        {typeof count === "number" && (
+          <span className="text-accent/70 font-normal">({count})</span>
+        )}
+      </h2>
+      <div className="w-24 h-1 bg-gradient-to-r from-accent to-accent/50 rounded-full"></div>
+    </div>
+  );
+}
+
+export default function MovieDetails() {
   const { id } = useParams();
-  const { loggedIn, user } = useAuth();
+  const { user } = useAuth();
   const [movie, setMovie] = useState(null);
-  const [showMore, setShowMore] = useState(false);
-  const [isWatched, setIsWatched] = useState(false);
-  const [inWatchlist, setInWatchlist] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [userRating, setUserRating] = useState(0);
-  const [review, setReview] = useState("");
-  const [userReview, setUserReview] = useState(false);
+  const [recommendations, setRecommendations] = useState([]);
   const [reviews, setReviews] = useState([]);
-  const [editing, setEditing] = useState(false);
-  const [editedReview, setEditedReview] = useState("");
-  const navigate = useNavigate();
-  const theme = useTheme();
-  const capitalize = (str) =>
-    str ? str.charAt(0).toUpperCase() + str.slice(1) : "";
+  const [loading, setLoading] = useState(true);
+  const [loadingRec, setLoadingRec] = useState(true);
+  const [loadingReviews, setLoadingReviews] = useState(true);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+  const [loggedMovies, setLoggedMovies] = useState([]);
+  const [watchlist, setWatchlist] = useState([]);
+  const [existingRating, setExistingRating] = useState(null);
+  const [shareSuccess, setShareSuccess] = useState(false);
+  const [watchlistSuccess, setWatchlistSuccess] = useState(false);
+  const [watchlistLoading, setWatchlistLoading] = useState(false);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const data = await fetchMovieDetails(id);
-        setMovie(data);
-        setLoading(false);
-        const fetchedReviews = await getReviews(id);
-        setReviews(fetchedReviews);
-        if (data && loggedIn) {
-          const loggedMovies = await getLoggedMovies(user);
-          setIsWatched(loggedMovies.includes(data.id));
+    setLoading(true);
+    setImageLoaded(false);
+    fetchMovieDetails(id)
+      .then(setMovie)
+      .finally(() => setLoading(false));
+  }, [id]);
 
-          const watchlistMovies = await getWatchlist(user);
-          setInWatchlist(watchlistMovies.includes(data.id));
+  useEffect(() => {
+    setLoadingRec(true);
+    if (movie?.id) {
+      getMovieRecommendations(movie.id)
+        .then((data) => {
+          setRecommendations(Array.isArray(data) ? data : data?.results || []);
+          setLoadingRec(false);
+        })
+        .catch(() => {
+          setRecommendations([]);
+          setLoadingRec(false);
+        });
+    } else {
+      setRecommendations([]);
+      setLoadingRec(false);
+    }
+  }, [movie]);
 
-          const userRatingData = await getUserRating(user, id);
-          setUserRating(userRatingData);
+  useEffect(() => {
+    if (movie?.id) {
+      setLoadingReviews(true);
+      getRatings(movie.id)
+        .then((data) => {
+          setReviews(Array.isArray(data) ? data : []);
+          const existingLog = data.find((r) => r.username === user?.username);
+          console.log("Existing log:", existingLog);
+          setExistingRating(existingLog || null);
+        })
+        .catch(() => {
+          setReviews([]);
+        })
+        .finally(() => {
+          setLoadingReviews(false);
+        });
+    }
+  }, [movie]);
 
-          const userReviewData = await getUserReview(user, id);
-          setUserReview(userReviewData);
-        }
-      } catch (error) {
-        console.error("Error fetching movie details:", error);
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [id, loggedIn, user]);
+  useEffect(() => {
+    if (user?.username) {
+      // Fetch logged movies
+      getLoggedMovies(user.username).then((movies) => {
+        setLoggedMovies(movies || []);
+        const existingLog = (movies || []).find((m) => {
+          // Handle both string and number movie_id formats
+          const movieId = m.movie_id || m;
+          return movieId == id || movieId == parseInt(id);
+        });
+      });
 
-  const handleLogMovie = async () => {
-    if (user && movie) {
-      try {
-        if (isWatched) {
-          if (userRating != 0) {
-            setUserRating(0);
-          }
-          await removeFromLogged(user, id);
-          setIsWatched(false);
-        } else {
-          await logMovie(user, id);
-          setIsWatched(true);
-          setInWatchlist(false);
-        }
-      } catch (error) {
-        console.error("Error updating logged movies:", error);
-      }
+      // Fetch watchlist
+      getWatchlist(user.username).then((list) => {
+        setWatchlist(list || []);
+      });
+    }
+  }, [user?.username, id]);
+
+  const isLogged = !!existingRating;
+  const isInWatchlist = watchlist.some((m) => {
+    // Handle both string and number movie_id formats
+    const movieId = m.movie_id || m;
+    return movieId == id || movieId == parseInt(id);
+  });
+
+  const handleLogMovie = () => {
+    if (!user) {
+      alert("Please log in to rate movies");
+      return;
+    }
+    setIsLogModalOpen(true);
+  };
+
+  const handleLogSuccess = () => {
+    if (user?.username) {
+      // Refresh logged movies
+      getLoggedMovies(user.username).then((movies) => {
+        setLoggedMovies(movies || []);
+        const existingLog = (movies || []).find((m) => {
+          // Handle both string and number movie_id formats
+          const movieId = m.movie_id || m;
+          return movieId == id || movieId == parseInt(id);
+        });
+        setExistingRating(existingLog || null);
+      });
+
+      // Refresh watchlist (movie should be removed from watchlist when logged)
+      getWatchlist(user.username).then((list) => {
+        setWatchlist(list || []);
+      });
+    }
+
+    // Refresh reviews
+    if (movie?.id) {
+      getRatings(movie.id).then((data) => {
+        setReviews(Array.isArray(data) ? data : []);
+      });
     }
   };
 
-  const handleWatchlistToggle = async () => {
-    if (user && movie) {
-      try {
-        if (inWatchlist) {
-          await removeFromWatchlist(user, id);
-          setInWatchlist(false);
-        } else {
-          await addToWatchlist(user, id);
-          setInWatchlist(true);
-          setIsWatched(false);
-          if (userRating != 0) {
-            setUserRating(0);
-          }
-        }
-      } catch (error) {
-        console.error("Error updating watchlist:", error);
-      }
+  const handleAddToWatchlist = async () => {
+    if (!user) {
+      alert("Please log in to add to watchlist");
+      return;
     }
-  };
 
-  const handleRate = async (value) => {
+    setWatchlistLoading(true);
     try {
-      if (isWatched == false) {
-        handleLogMovie();
-      }
-      await rateMovie(user, id, value, userReview);
-      setUserRating(value);
-    } catch {
-      alert("Failed to submit rating");
+      await addToWatchlist(user.username, movie.id);
+      setWatchlistSuccess(true);
+      // Refresh watchlist
+      getWatchlist(user.username).then((list) => setWatchlist(list || []));
+      setTimeout(() => setWatchlistSuccess(false), 2000);
+    } catch (err) {
+      alert("Failed to add to watchlist");
+    } finally {
+      setWatchlistLoading(false);
     }
   };
 
-  const handleAddReview = async () => {
+  const handleRemoveFromWatchlist = async () => {
+    if (!user) {
+      alert("Please log in to remove from watchlist");
+      return;
+    }
+
+    setWatchlistLoading(true);
     try {
-      await addReview(id, user, userRating, review);
-      if (!isWatched) {
-        handleLogMovie();
-      }
-      const updatedReviews = await getReviews(id);
-      setReviews(updatedReviews);
-      setUserReview(review);
-    } catch (e) {
-      console.error("Failed to submit review", e);
+      await removeFromWatchlist(user.username, movie.id);
+      // Refresh watchlist
+      getWatchlist(user.username).then((list) => setWatchlist(list || []));
+      setWatchlistSuccess(false);
+    } catch (err) {
+      alert("Failed to remove from watchlist");
+    } finally {
+      setWatchlistLoading(false);
     }
   };
 
-  const handleDeleteReview = async () => {
+  const handleShare = async () => {
+    const url = window.location.href;
     try {
-      await deleteReview(id, user);
-      setUserReview("");
-      setReviews(reviews.filter((review) => review.username !== user));
-    } catch (error) {
-      console.error("Failed to delete review:", error);
+      await navigator.clipboard.writeText(url);
+      setShareSuccess(true);
+      setTimeout(() => setShareSuccess(false), 2000);
+    } catch (err) {
+      const textArea = document.createElement("textarea");
+      textArea.value = url;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      setShareSuccess(true);
+      setTimeout(() => setShareSuccess(false), 2000);
     }
   };
 
-  const handleEditReview = async () => {
-    try {
-      await editReview(user, id, editedReview);
-      setUserReview(editedReview);
-      setReviews(
-        reviews.filter(
-          (review) => review.username !== user && review.review !== userReview
-        )
-      );
-      setEditing(false);
-    } catch (error) {
-      console.error("Failed to edit review:", error);
-    }
-  };
-
-  if (loading)
+  if (loading) {
     return (
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100vh",
-          color: "teal",
-        }}
-      >
-        <Typography variant="h5">Grabbing movie details... 🍿</Typography>
-        <CircularProgress sx={{ color: "teal", mt: 2 }} />
-      </Box>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-surface">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-accent/20 border-t-accent rounded-full animate-spin"></div>
+            <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-t-accent/40 rounded-full animate-spin animation-delay-75"></div>
+          </div>
+          <p className="text-text-soft font-medium">Loading movie details...</p>
+        </div>
+      </div>
     );
+  }
+
+  if (!movie) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-surface">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🎬</div>
+          <h2 className="text-2xl font-bold text-text-main mb-2">
+            Movie Not Found
+          </h2>
+          <p className="text-text-soft">
+            The movie you're looking for doesn't exist or has been removed.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const genreChips = (movie.genres || []).map((g) => (
+    <span
+      key={g.id || g.name}
+      className="bg-gradient-to-r from-accent/20 to-accent/10 text-accent px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm border border-accent/30 hover:bg-accent/20 transition-colors duration-200"
+    >
+      {g.name}
+    </span>
+  ));
+
+  const topCast = movie?.cast || [];
+
+  // Button logic based on logged and watchlist status
+  let logButtonLabel = isLogged ? "Edit Log" : "Log Movie";
+  let logButtonIcon = isLogged ? Edit3 : Play;
+  let logButtonDisabled = false; // Always allow logging
+
+  let watchlistButtonLabel = isInWatchlist
+    ? "Remove from Watchlist"
+    : "Add to Watchlist";
+  let watchlistButtonIcon = isInWatchlist ? LogOut : Heart;
+  let watchlistButtonAction = isInWatchlist
+    ? handleRemoveFromWatchlist
+    : handleAddToWatchlist;
+  let watchlistButtonDisabled = isLogged; // Disable if movie is logged
 
   return (
-    <Box
-      sx={{
-        background: "linear-gradient(135deg, #f0fdfd, #ffffff)",
-        color: "#333",
-        borderRadius: "12px",
-        boxShadow: "0 4px 15px rgba(0, 0, 0, 0.2)",
-        maxWidth: "1200px",
-        margin: "auto",
-        mt: 4,
-        pb: 4,
-      }}
-    >
-      {movie.backdrop_path && (
-        <Box
-          sx={{
-            display: { xs: "none", md: "block" },
-            position: "relative",
-            height: { md: "400px" },
-            backgroundImage: `url(${movie.backdrop_path})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            borderRadius: "12px 12px 0 0",
-            width: "100%",
-          }}
-        />
-      )}
-
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: { xs: "column", md: "row" },
-          gap: 3,
-          p: 3,
-        }}
-      >
-        {movie.poster_path && (
-          <Box
-            component="img"
-            src={movie.poster_path}
-            alt={movie.title}
-            sx={{
-              width: { xs: "100%", md: "250px" },
-              borderRadius: 2,
-              objectFit: "cover",
-            }}
-          />
-        )}
-
-        <Box sx={{ flex: 1 }}>
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <Box>
-              <Typography variant="h4" fontWeight="bold">
-                {movie.title}
-              </Typography>
-              {movie.original_title &&
-                movie.original_title.toLowerCase() !==
-                  movie.title.toLowerCase() && (
-                  <Typography variant="subtitle1" sx={{ opacity: 0.7 }}>
-                    {movie.original_title}
-                  </Typography>
-                )}
-              {movie.tagline && (
-                <Typography
-                  variant="subtitle1"
-                  sx={{ fontStyle: "italic", mb: 1, opacity: 0.8 }}
-                >
-                  {movie.tagline}
-                </Typography>
-              )}
-            </Box>
-            {loggedIn && (
-              <Box sx={{ display: "flex", gap: 2 }}>
-                <Tooltip
-                  title={isWatched ? "Remove from Watched" : "Add to Watched"}
-                  arrow
-                >
-                  <IconButton
-                    onClick={handleLogMovie}
-                    color="primary"
-                    sx={{ fontSize: "2rem" }}
-                  >
-                    {isWatched ? (
-                      <VisibilityOff fontSize="large" />
-                    ) : (
-                      <Visibility fontSize="large" />
-                    )}
-                  </IconButton>
-                </Tooltip>
-                <Tooltip
-                  title={
-                    inWatchlist ? "Remove from Watchlist" : "Add to Watchlist"
-                  }
-                  arrow
-                >
-                  <IconButton
-                    onClick={handleWatchlistToggle}
-                    color="primary"
-                    sx={{ fontSize: "2rem" }}
-                  >
-                    {inWatchlist ? (
-                      <Bookmark fontSize="large" />
-                    ) : (
-                      <BookmarkBorder fontSize="large" />
-                    )}
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            )}
-          </Box>
-
-          <Typography variant="body2" sx={{ opacity: 0.8 }}>
-            {new Date(movie.release_date).getFullYear()}
-          </Typography>
-
-          <Typography variant="body2">Director: {movie.director}</Typography>
-
-          <Typography variant="body2">
-            Genres: {movie.genres.map((g) => g.name).join(", ")}
-          </Typography>
-
-          <Typography variant="body2">Runtime: {movie.runtime} mins</Typography>
-
-          {movie.cast && (
-            <Box mt={1}>
-              <Typography variant="body2" fontWeight="bold">
-                Cast:
-              </Typography>
-              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1 }}>
-                {movie.cast.slice(0, 10).map((actor) => (
-                  <Chip
-                    key={actor}
-                    label={actor}
-                    sx={{
-                      backgroundColor: "#b8e1e0",
-                      color: theme.palette.primary.main,
-                    }}
-                  />
-                ))}
-              </Box>
-            </Box>
-          )}
-
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 2 }}>
-            <Box sx={{ position: "relative", display: "inline-flex" }}>
-              <CircularProgress
-                variant="determinate"
-                value={movie.rating * 10}
-                sx={{
-                  color:
-                    (movie.rating || 0) >= 7
-                      ? theme.palette.success.main
-                      : (movie.rating || 0) >= 5
-                      ? theme.palette.warning.main
-                      : theme.palette.error.main,
-                  width: "55px",
-                  height: "55px",
-                  thickness: 5,
-                }}
-              />
-              <Box
-                sx={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%, -50%)",
-                  fontWeight: "bold",
-                  fontSize: "1rem",
-                }}
-              >
-                {movie.rating.toFixed(1) == 0
-                  ? "N/A"
-                  : (movie.rating / 2).toFixed(1)}
-              </Box>
-            </Box>
-            <Typography>Users Rating</Typography>
-            {loggedIn && (
-              <Box
-                sx={{
-                  ml: { xs: 0, sm: 4 },
-                  display: "flex",
-                  flexDirection: { xs: "column", sm: "row" },
-                  alignItems: "center",
-                  gap: 1,
-                  textAlign: { xs: "center", sm: "left" },
-                }}
-              >
-                {userRating !== 0 && <Typography>Your Rating:</Typography>}
-                <Tooltip title="Rate this movie">
-                  <Rating
-                    name="movie-rating"
-                    value={userRating}
-                    onChange={(event, newValue) => handleRate(newValue)}
-                    precision={0.5}
-                    icon={<StarIcon fontSize="large" />}
-                    emptyIcon={<StarIcon fontSize="large" color="disabled" />}
-                    sx={{
-                      "& .MuiSvgIcon-root": {
-                        fontSize: { xs: "1.8rem", sm: "2.4rem" },
-                      },
-                    }}
-                  />
-                </Tooltip>
-              </Box>
-            )}
-          </Box>
-        </Box>
-      </Box>
-
-      <Divider />
-
-      <Box sx={{ p: 3 }}>
-        <Typography variant="h6" sx={{ mb: 0.5 }}>
-          Overview
-        </Typography>
-
-        <Typography
-          variant="body1"
-          sx={{ fontSize: "1.2rem", lineHeight: 1.7 }}
-        >
-          {showMore || movie.overview.length <= 200
-            ? movie.overview
-            : `${movie.overview.slice(0, 200)}...`}
-          {movie.overview.length > 200 && (
-            <Button
-              sx={{ color: "teal", textTransform: "none", p: 0, ml: 0.5 }}
-              onClick={() => setShowMore(!showMore)}
-            >
-              {showMore ? "Show Less" : "Show More"}
-            </Button>
-          )}
-        </Typography>
-
-        <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-          <Button
-            variant="contained"
-            sx={{
-              backgroundColor: "teal",
-              color: "white",
-              px: 4,
-              py: 1.5,
-              borderRadius: "30px",
-              boxShadow: 3,
-              "&:hover": {
-                backgroundColor: "darkslategray",
-              },
-            }}
-            onClick={() => navigate(`/recommendations?id=${movie.id}`)}
-          >
-            Show Recommendations
-          </Button>
-        </Box>
-      </Box>
-      {loggedIn && !userReview && (
-        <Box sx={{ p: 3 }}>
-          <Typography variant="h6" sx={{ mb: 1 }}>
-            Write Your Review
-          </Typography>
-          <Box
-            sx={{
-              position: "relative",
-              width: "100%",
-            }}
-          >
-            <TextField
-              multiline
-              minRows={4}
-              maxRows={6}
-              placeholder="Share your thoughts..."
-              value={review}
-              onChange={(e) => setReview(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleAddReview();
-                }
-              }}
-              fullWidth
-              variant="outlined"
-              InputProps={{
-                sx: {
-                  borderRadius: "12px",
-                  backgroundColor: "#f5f5f5",
-                  "& .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#ccc",
-                  },
-                },
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-surface text-text-main overflow-hidden">
+      <div className="relative w-full min-h-[100vh] flex items-center">
+        {movie.backdrop_path && (
+          <>
+            <div
+              className={`absolute inset-0 z-0 transition-opacity duration-700 ${
+                imageLoaded ? "opacity-60" : "opacity-0"
+              }`}
+              style={{
+                backgroundImage: `url(${movie.backdrop_path})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                backgroundAttachment: "fixed",
               }}
             />
-            <IconButton
-              onClick={handleAddReview}
-              sx={{
-                position: "absolute",
-                right: "10px",
-                bottom: "10px",
-                backgroundColor: "teal",
-                color: "white",
-                borderRadius: "50%",
-                "&:hover": {
-                  backgroundColor: "darkslategray",
-                },
-              }}
-            >
-              <SendIcon />
-            </IconButton>
-          </Box>
-        </Box>
-      )}
-      <Box sx={{ p: 3 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Reviews
-        </Typography>
-
-        {loggedIn && userReview && (
-          <Box
-            sx={{
-              mb: 2,
-              p: 2,
-              backgroundColor: "#e0f2f1",
-              borderRadius: 2,
-              boxShadow: 1,
-            }}
-          >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-              <Avatar
-                sx={{
-                  alignSelf: "center",
-                  bgcolor: theme.palette.primary.main,
-                }}
-              >
-                {capitalize(user[0])}
-              </Avatar>
-              <Box ml={1}>
-                <Typography variant="subtitle1" fontWeight="bold">
-                  {capitalize(user)}
-                </Typography>
-                <Rating value={userRating || 0} readOnly />
-              </Box>
-              <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
-                <IconButton
-                  onClick={() => setEditing(true)}
-                  sx={{ color: "teal" }}
-                >
-                  <EditIcon />
-                </IconButton>
-                <IconButton onClick={handleDeleteReview} sx={{ color: "red" }}>
-                  <DeleteIcon />
-                </IconButton>
-              </Box>
-            </Box>
-
-            {editing ? (
-              <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
-                <TextField
-                  multiline
-                  minRows={2}
-                  maxRows={4}
-                  value={editedReview}
-                  onChange={(e) => setEditedReview(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleEditReview();
-                    }
-                  }}
-                  fullWidth
-                  variant="outlined"
-                  InputProps={{
-                    sx: {
-                      borderRadius: "12px",
-                      backgroundColor: "#f5f5f5",
-                    },
-                  }}
+            <img
+              src={movie.backdrop_path}
+              alt=""
+              className="hidden"
+              onLoad={() => setImageLoaded(true)}
+            />
+          </>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-black/40 z-10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10" />
+        <div className="relative z-20 w-full max-w-7xl mx-auto px-4 md:px-8 py-20">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            <div className="lg:col-span-4 flex justify-center lg:justify-start">
+              <div className="relative group">
+                <div className="absolute inset-0 bg-gradient-to-br from-accent/20 to-transparent rounded-2xl blur-xl transform group-hover:scale-105 transition-transform duration-300"></div>
+                <img
+                  src={movie.poster_path || "/assets/placeholder.jpg"}
+                  alt={movie.title}
+                  className="relative rounded-2xl shadow-2xl object-cover border border-white/10 aspect-[2/3] w-72 max-w-full transform group-hover:scale-105 transition-transform duration-300"
                 />
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                  <IconButton
-                    onClick={handleEditReview}
-                    sx={{
-                      color: "teal",
-                      backgroundColor: "#d9f0f0",
-                      borderRadius: "50%",
-                      p: 0.5,
-                      "&:hover": { backgroundColor: "teal", color: "white" },
-                    }}
-                  >
-                    <CheckIcon />
-                  </IconButton>
-                  <IconButton
-                    onClick={() => setEditing(false)}
-                    sx={{
-                      color: "gray",
-                      backgroundColor: "#f1f1f1",
-                      borderRadius: "50%",
-                      p: 0.5,
-                      "&:hover": { backgroundColor: "#ddd" },
-                    }}
-                  >
-                    <CloseIcon />
-                  </IconButton>
-                </Box>
-              </Box>
-            ) : (
-              <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                {userReview}
-              </Typography>
-            )}
-          </Box>
-        )}
-
-        {reviews.length > 0 ? (
-          reviews
-            .filter((review) => review.username && review.review !== userReview)
-            .map((review, index) => (
-              <Box
-                key={index}
-                sx={{
-                  p: 2,
-                  backgroundColor: "#e0f2f1",
-                  borderRadius: 2,
-                  boxShadow: 1,
-                  mb: 1,
-                }}
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                {isLogged && (
+                  <div className="absolute top-4 right-4 bg-accent/90 backdrop-blur-sm rounded-full p-2">
+                    <Check size={16} className="text-white" />
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="lg:col-span-8 space-y-6">
+              <div className="space-y-2">
+                <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight bg-gradient-to-r from-white to-white/80 bg-clip-text">
+                  {movie.title}
+                </h1>
+                {movie.director && (
+                  <p className="text-accent text-lg font-medium">
+                    Directed by {movie.director}
+                  </p>
+                )}
+                {movie.tagline && movie.tagline.trim() && (
+                  <p className="text-white/80 text-xl italic font-light">
+                    "{movie.tagline}"
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-4">
+                <MetricBadge
+                  icon={Calendar}
+                  value={movie.release_date?.slice(0, 4) || "N/A"}
+                  label="Year"
+                />
+                <div className="bg-black/30 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10">
+                  <StarRating
+                    value={movie.rating || 0}
+                    size={16}
+                    showText={true}
+                  />
+                </div>
+                {movie.runtime && (
+                  <MetricBadge
+                    icon={Clock}
+                    value={`${Math.floor(movie.runtime / 60)}h ${
+                      movie.runtime % 60
+                    }m`}
+                    label="Runtime"
+                  />
+                )}
+              </div>
+              {isLogged && existingRating && (
+                <div className="bg-accent/10 backdrop-blur-md px-4 py-3 rounded-xl border border-accent/30">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-accent font-medium text-sm">
+                        Your Rating
+                      </p>
+                      <InteractiveStarRating
+                        rating={existingRating.rating}
+                        onRatingChange={() => {}}
+                        size={16}
+                      />
+                      <p className="text-white/70 text-xs mt-1">
+                        Watched on{" "}
+                        {new Date(
+                          existingRating.watched_date
+                        ).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleLogMovie}
+                      className="p-2 hover:bg-accent/20 rounded-lg transition-colors"
+                    >
+                      <Edit3 size={16} className="text-accent" />
+                    </button>
+                  </div>
+                  {existingRating.review && (
+                    <p className="text-white/80 text-sm mt-2 italic">
+                      "{existingRating.review}"
+                    </p>
+                  )}
+                </div>
+              )}
+              {genreChips.length > 0 && (
+                <div className="flex flex-wrap gap-2">{genreChips}</div>
+              )}
+              <div className="space-y-4">
+                <h3 className="text-xl font-semibold text-white">Overview</h3>
+                <p className="text-white/90 text-lg leading-relaxed max-w-3xl">
+                  {movie.overview || "No overview available."}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3 pt-4">
+                <ActionButton
+                  icon={logButtonIcon}
+                  label={logButtonLabel}
+                  primary={true}
+                  onClick={handleLogMovie}
+                  disabled={logButtonDisabled}
+                />
+                <ActionButton
+                  icon={watchlistButtonIcon}
+                  label={watchlistButtonLabel}
+                  onClick={watchlistButtonAction}
+                  disabled={watchlistButtonDisabled || watchlistLoading}
+                />
+                <ActionButton
+                  icon={shareSuccess ? Check : Share2}
+                  label={shareSuccess ? "Copied!" : "Share"}
+                  onClick={handleShare}
+                />
+              </div>
+              {watchlistButtonDisabled && (
+                <p className="text-yellow-400 text-sm">
+                  Remove from logged movies to add to watchlist
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      {topCast.length > 0 && (
+        <Section>
+          <SectionHeading icon={Users}>Top Cast</SectionHeading>
+          <div className="flex flex-wrap gap-2">
+            {topCast.slice(0, 12).map((actor, idx) => (
+              <span
+                key={actor || idx}
+                className="bg-accent/10 text-accent px-3 py-1.5 rounded-full text-sm font-medium border border-accent/20 hover:bg-accent/20 transition-colors duration-200"
               >
-                <Box
-                  sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}
-                >
-                  <Avatar
-                    sx={{
-                      alignSelf: "center",
-                      bgcolor: theme.palette.primary.main,
-                    }}
-                  >
-                    {capitalize(review?.username?.[0]) || "U"}
-                  </Avatar>
-                  <Box ml={1}>
-                    <Typography variant="subtitle1" fontWeight="bold">
-                      {capitalize(review?.username)}
-                    </Typography>
-                    <Rating value={review?.rating || 0} readOnly />
-                  </Box>
-                </Box>
-                <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                  {review?.review}
-                </Typography>
-              </Box>
-            ))
+                {actor}
+              </span>
+            ))}
+            {topCast.length > 12 && (
+              <span className="text-text-soft text-sm px-3 py-1.5">
+                +{topCast.length - 12} more
+              </span>
+            )}
+          </div>
+        </Section>
+      )}
+      <Section>
+        <SectionHeading icon={MessageSquare} count={reviews.length}>
+          Reviews
+        </SectionHeading>
+        {loadingReviews ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-white/10 rounded-xl p-6 animate-pulse">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-surface rounded-full"></div>
+                  <div className="space-y-2">
+                    <div className="w-24 h-4 bg-surface rounded"></div>
+                    <div className="w-16 h-3 bg-surface rounded"></div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="w-full h-3 bg-surface rounded"></div>
+                  <div className="w-3/4 h-3 bg-surface rounded"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : reviews.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {reviews.map((review, index) => (
+              <ReviewCard key={review.id || index} review={review} />
+            ))}
+          </div>
         ) : (
-          <Typography>No reviews available.</Typography>
+          <div className="text-center py-12">
+            <div className="text-4xl mb-4">💬</div>
+            <p className="text-text-soft text-lg mb-4">
+              No reviews yet. Be the first to share your thoughts!
+            </p>
+            {user && (
+              <button
+                onClick={handleLogMovie}
+                className="px-6 py-3 bg-accent hover:bg-accent/90 text-white rounded-xl font-medium transition-colors"
+              >
+                Write a Review
+              </button>
+            )}
+          </div>
         )}
-      </Box>
-    </Box>
+      </Section>
+      <Section>
+        <SectionHeading icon={Star}>You Might Also Like</SectionHeading>
+        {loadingRec ? (
+          <div className="space-y-4">
+            <div className="flex gap-4 overflow-hidden">
+              {[...Array(6)].map((_, i) => (
+                <div
+                  key={i}
+                  className="flex-none w-48 h-72 bg-white/10 rounded-xl animate-pulse"
+                ></div>
+              ))}
+            </div>
+          </div>
+        ) : recommendations.length > 0 ? (
+          <MovieCarousel movies={recommendations} title="" />
+        ) : (
+          <div className="text-center py-12">
+            <div className="text-4xl mb-4">🔍</div>
+            <p className="text-text-soft text-lg">
+              No recommendations available at this time
+            </p>
+          </div>
+        )}
+      </Section>
+      <LogMovieModal
+        movie={movie}
+        isOpen={isLogModalOpen}
+        onClose={() => setIsLogModalOpen(false)}
+        existingRating={existingRating}
+        onSuccess={handleLogSuccess}
+      />
+    </div>
   );
-};
-
-export default MovieDetails;
+}

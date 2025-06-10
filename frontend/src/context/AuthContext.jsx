@@ -1,65 +1,71 @@
-/* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import { loginUser, signupUser } from "../utils/api";
 
-export const AuthContext = createContext();
+const AuthContext = createContext();
 
-export const AuthProvider = ({ children }) => {
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(() => {
+    const storedUser = localStorage.getItem("user");
+    const token = localStorage.getItem("token");
+    return storedUser && token ? JSON.parse(storedUser) : null;
+  });
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const checkLoginStatus = () => {
-      const token = localStorage.getItem("token");
-      const savedUser = localStorage.getItem("user");
+    const storedUser = localStorage.getItem("user");
+    const token = localStorage.getItem("token");
+    if (storedUser && token && !user) {
+      setUser(JSON.parse(storedUser));
+    }
+    if ((!storedUser || !token) && user) {
+      setUser(null);
+    }
+  }, [user]);
 
-      if (token && savedUser) {
-        try {
-          const parsedUser = JSON.parse(savedUser);
-          setLoggedIn(true);
-          setUser(parsedUser);
-        } catch (e) {
-          console.error("Error parsing user data", e);
-          setLoggedIn(false);
-        }
-      } else {
-        setLoggedIn(false);
-        setUser(null);
-      }
-
-      setLoading(false);
-    };
-
-    checkLoginStatus();
-  }, []);
-
-  const login = (token, user) => {
+  const login = async (userInput, password) => {
+    setLoading(true);
     try {
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
-      setLoggedIn(true);
-      setUser(user);
-    } catch (error) {
-      console.error("Error logging in", error);
+      const data = await loginUser(userInput, password);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("token", data.token);
+      setUser(data.user);
+      setLoading(false);
+      return data.user;
+    } catch (err) {
+      setLoading(false);
+      throw err;
+    }
+  };
+
+  const signup = async (form) => {
+    setLoading(true);
+    try {
+      const data = await signupUser(form);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("token", data.token);
+      setUser(data.user);
+      setLoading(false);
+      return data.user;
+    } catch (err) {
+      setLoading(false);
+      throw err;
     }
   };
 
   const logout = () => {
-    try {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      setLoggedIn(false);
-      setUser(null);
-    } catch (error) {
-      console.error("Error logging out", error);
-    }
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ loggedIn, loading, user, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export const useAuth = () => useContext(AuthContext);
+// eslint-disable-next-line react-refresh/only-export-components
+export function useAuth() {
+  return useContext(AuthContext);
+}

@@ -1,34 +1,21 @@
-import { Box, Typography } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
-import tmdbLogo from "../assets/tmdb.svg";
+import tmdbLogo from "../assets/tmdbLogo.svg";
 
-function Footer() {
-  const theme = useTheme();
-
+export default function Footer() {
   return (
-    <Box
-      component="footer"
-      sx={{
-        backgroundColor: theme.palette.primary.dark,
-        color: theme.palette.text.light,
-        textAlign: "center",
-        py: 2,
-        mt: 4,
-      }}
-    >
-      <Typography variant="body2">
+    <footer className="bg-background text-gray-500 text-center py-6 border-t border-surface flex flex-col items-center gap-2">
+      <div className="flex items-center justify-center gap-2 text-xs">
         This product uses the TMDB API but is not endorsed or certified by TMDB
         <img
           src={tmdbLogo}
           alt="TMDB Logo"
-          style={{ height: 20, verticalAlign: "middle", margin: "0 5px" }}
+          className="inline-block h-5 align-middle"
+          style={{ marginLeft: 4 }}
         />
-      </Typography>
-      <Typography variant="body2" sx={{ mt: 1 }}>
-        &copy; {new Date().getFullYear()} Movie Recommendation System
-      </Typography>
-    </Box>
+      </div>
+      <div className="text-sm mt-1">
+        &copy; {new Date().getFullYear()} MovieVault &mdash; Your Personalized
+        Movie Journal
+      </div>
+    </footer>
   );
 }
-
-export default Footer;
