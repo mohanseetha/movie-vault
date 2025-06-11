@@ -20,6 +20,7 @@ export function useMovieData(id, user) {
 
   useEffect(() => {
     setLoading(true);
+    setMovie(null);
     fetchMovieDetails(id)
       .then(setMovie)
       .finally(() => setLoading(false));
@@ -40,6 +41,8 @@ export function useMovieData(id, user) {
   }, [movie]);
 
   useEffect(() => {
+    setReviews([]);
+    setExistingRating(null);
     if (movie?.id) {
       setLoadingReviews(true);
       getRatings(movie.id)
@@ -50,6 +53,8 @@ export function useMovieData(id, user) {
           );
         })
         .finally(() => setLoadingReviews(false));
+    } else {
+      setLoadingReviews(false);
     }
   }, [movie, user?.username]);
 

@@ -255,7 +255,7 @@ export const getRatings = async (movieId) => {
         headers: getAuthHeaders(),
       }
     );
-    console.log("Ratings response:", response.data);
+
     return response.data;
   } catch (error) {
     throw error.response?.data?.error || "Failed to fetch ratings";
