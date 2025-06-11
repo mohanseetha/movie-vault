@@ -1,5 +1,3 @@
-// LogMovieModal.jsx
-
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { Play, X, Check, Trash2 } from "lucide-react";
@@ -7,7 +5,6 @@ import StarRating from "./StarRating";
 import InteractiveStarRating from "./InteractiveStarRating";
 import { addRating, editRating, deleteRating } from "../utils/api";
 
-// Helper to ensure yyyy-MM-dd format for <input type="date" />
 function formatDate(date) {
   if (!date) return "";
   if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
@@ -24,27 +21,21 @@ export default function LogMovieModal({
   onSuccess,
 }) {
   const { user } = useAuth();
-  const [rating, setRating] = useState(existingRating?.rating || 0);
-  const [review, setReview] = useState(existingRating?.review || "");
-  const [watchedDate, setWatchedDate] = useState(
-    existingRating?.watched_date
-      ? formatDate(existingRating.watched_date)
-      : new Date().toISOString().split("T")[0]
-  );
+  const [rating, setRating] = useState(0);
+  const [review, setReview] = useState("");
+  const [watchedDate, setWatchedDate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const isEditing = !!existingRating;
 
   useEffect(() => {
-    if (existingRating) {
-      setRating(existingRating.rating || 0);
-      setReview(existingRating.review || "");
-      setWatchedDate(formatDate(existingRating.watched_date));
-    } else {
-      setRating(0);
-      setReview("");
-      setWatchedDate(new Date().toISOString().split("T")[0]);
-    }
+    setRating(existingRating?.rating || 0);
+    setReview(existingRating?.review || "");
+    setWatchedDate(
+      existingRating?.watched_date
+        ? formatDate(existingRating.watched_date)
+        : new Date().toISOString().split("T")[0]
+    );
     setError("");
   }, [existingRating, isOpen]);
 
@@ -57,24 +48,19 @@ export default function LogMovieModal({
     setIsSubmitting(true);
     setError("");
     try {
-      if (isEditing) {
-        await editRating(
-          user.username,
-          movie.id,
-          rating,
-          review,
-          formatDate(watchedDate)
-        );
-      } else {
-        await addRating(
-          user.username,
-          movie.id,
-          rating,
-          review,
-          formatDate(watchedDate)
-        );
-      }
-      onSuccess();
+      const fn = isEditing ? editRating : addRating;
+      await fn(
+        user.username,
+        movie.id,
+        rating,
+        review,
+        formatDate(watchedDate)
+      );
+      onSuccess(isEditing ? "edit" : "add", {
+        rating,
+        review,
+        watched_date: watchedDate,
+      });
       onClose();
     } catch (err) {
       setError(err.toString());
@@ -84,13 +70,10 @@ export default function LogMovieModal({
   };
 
   const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to delete this rating?")) {
-      return;
-    }
     setIsSubmitting(true);
     try {
       await deleteRating(user.username, movie.id);
-      onSuccess();
+      onSuccess("delete");
       onClose();
     } catch (err) {
       setError(err.toString());

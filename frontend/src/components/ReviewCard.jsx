@@ -1,5 +1,5 @@
 import { User } from "lucide-react";
-import InteractiveStarRating from "./InteractiveStarRating";
+import StarRating from "./StarRating";
 
 export default function ReviewCard({ review }) {
   return (
@@ -19,11 +19,7 @@ export default function ReviewCard({ review }) {
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <InteractiveStarRating
-            rating={review.rating}
-            onRatingChange={() => {}}
-            size={14}
-          />
+          <StarRating value={review.rating} />
         </div>
       </div>
       {review.review && (
