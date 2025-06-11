@@ -34,6 +34,8 @@ export default function MovieDetails() {
 
   useEffect(() => {
     setLocalRating(existingRating);
+    setIsLogModalOpen(false);
+    setLastDeletedReviewUser(null);
   }, [existingRating, id]);
 
   const isLogged = !!localRating;
