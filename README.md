@@ -1,70 +1,47 @@
 # Movie Vault
 
-Movie Vault is a movie database web application where users can log their watched movies, manage watchlists, and receive personalized movie recommendations powered by a machine learning model.
+Movie Vault is a full-stack movie management and discovery platform with a clean, modular architecture:
 
-## Features
+- **Frontend**: Built with React and Material UI, providing a responsive and user-friendly interface. Features include user authentication (JWT), movie search and filtering, personal watchlists, diary, and profile management.
+- **Backend**: Powered by Node.js, Express, and MongoDB, offering secure user management, movie catalog storage, and RESTful APIs for all core features.
 
-* Log watched movies and track viewing history
-* Add movies to personal watchlists
-* Receive personalized movie recommendations using ML
-* Search and filter movies in the database
-* User authentication and account management
-* Responsive user interface
-
-## Tech Stack
-
-* **Frontend:** React
-* **Backend:** Flask
-* **Database:** MongoDB
+![Demo](assets/demo.gif)
 
 ## Getting Started
+1.	Clone the repository:
+   ```
+   git clone https://github.com/mohanseetha/movie-vault.git
+   ```
 
-### Prerequisites
+### Backend Setup
+1.	Navigate to the backend directory:
+```
+cd movie-vault/backend
+```
+2.	Configure your MongoDB connection and JWT secret in the ‎⁠.env⁠ file (see ‎⁠backend/README.md⁠ for details).
+3.	Install dependencies:
+```
+npm install
+```
+4.	Start the backend server:
+```
+nodemon server
+```
 
-* Node.js (v14 or higher)
-* npm
-* Python 3.x
-* MongoDB
+### Frontend Setup
+1.	Navigate to the frontend directory:
+```
+cd movie-vault/frontend
+```
+2.	Install dependencies:
+```
+npm install
+```
 
-### Installation
+3.	Set your backend API URL in a ‎⁠.env⁠ file (e.g., ‎⁠VITE_BASE_URL=http://localhost:8000).
+4.	Start the frontend development server:
+```
+npm start
+```
 
-1.  **Clone the repository**
-    ```bash
-    git clone [https://github.com/mohanseetha/movie-vault.git](https://github.com/mohanseetha/movie-vault.git)
-    cd movie-vault
-    ```
-
-2.  **Install frontend dependencies**
-    ```bash
-    cd frontend
-    npm install
-    ```
-
-3.  **Install backend dependencies**
-    ```bash
-    cd backend
-    pip install -r requirements.txt
-    ```
-
-4.  **Set up environment variables**
-    Create a `.env` file in the `backend` directory with your MongoDB URI and other required configs.
-
-5.  **Run the backend server**
-    ```bash
-    python app.py
-    ```
-
-6.  **Run the frontend app**
-    ```bash
-    npm run dev
-    ```
-
-## Usage
-
-1.  Open your browser and go to `http://localhost:5173`
-2.  Sign up or log in to your account
-3.  Start adding movies, building your watchlist, and exploring recommendations
-
-## Contributing
-
-Contributions are welcome! Please open issues or submit pull requests for new features, bug fixes, or improvements.
+For full setup instructions and feature details, refer to the individual ‎⁠README.md⁠ files in the ‎⁠backend⁠ and ‎⁠frontend⁠ folders.
