@@ -15,7 +15,6 @@ router.post("/add-to-watchlist", addToWatchlist);
 router.post("/remove-from-watchlist", removeFromWatchlist);
 router.get("/get-logged", getLogged);
 router.get("/get-watchlist", getWatchlist);
-
 router.post("/recommended-movies", getRecommendedMovies);
 
 export default router;

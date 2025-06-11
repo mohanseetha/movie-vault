@@ -9,10 +9,9 @@ import { authenticate } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
-router.use(authenticate);
-router.post("/add-rating", addRating);
-router.put("/edit-rating", editRating);
-router.delete("/delete-rating", deleteRating);
+router.post("/add-rating", authenticate, addRating);
+router.put("/edit-rating", authenticate, editRating);
+router.delete("/delete-rating", authenticate, deleteRating);
 router.get("/get-ratings/:movie_id", getRatings);
 
 export default router;
