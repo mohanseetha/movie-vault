@@ -37,7 +37,7 @@ export default function LogMovieModal({
         : new Date().toISOString().split("T")[0]
     );
     setError("");
-  }, [existingRating, isOpen]);
+  }, [existingRating, isOpen, movie?.id]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

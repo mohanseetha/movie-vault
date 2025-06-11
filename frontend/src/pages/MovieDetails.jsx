@@ -34,7 +34,7 @@ export default function MovieDetails() {
 
   useEffect(() => {
     setLocalRating(existingRating);
-  }, [existingRating]);
+  }, [existingRating, id]);
 
   const isLogged = !!localRating;
   const isInWatchlist = watchlist.some((m) => {
